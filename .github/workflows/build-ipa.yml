@@ -1,0 +1,61 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Generate native iOS project (prebuild)
+        run: npx expo prebuild -p ios --no-install
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install
+
+      - name: Detect Xcode scheme
+        id: scheme
+        run: |
+          SCHEME=$(xcodebuild -list -workspace ios/*.xcworkspace 2>/dev/null | sed -n '/Schemes:/,$p' | sed -n '2p' | xargs)
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Using scheme: $SCHEME"
+
+      - name: Archive (unsigned, device target)
+        run: |
+          xcodebuild -workspace ios/*.xcworkspace \
+            -scheme "${{ steps.scheme.outputs.scheme }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/App.xcarchive \
+            archive CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/App.xcarchive/Products/Applications/*.app Payload/
+          zip -qry App-unsigned.ipa Payload
+          ls -lh App-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: App-unsigned-ipa
+          path: App-unsigned.ipa
+          retention-days: 30
