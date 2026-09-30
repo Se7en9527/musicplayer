@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "云音乐",
+    "slug": "musicplayer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "musicplayer",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0c0c0c"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.musicplayer",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
+        ],
+        "NSAppleMusicUsageDescription": "需要访问您的音乐库以导入本地歌曲到播放器",
+        "NSLocalNetworkUsageDescription": "用于在本地网络接收电脑上传的音乐文件",
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "UIFileSharingEnabled": true,
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      "expo-media-library"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "10719a14-6503-46c4-a8ba-d5b5c31b99b1"
+      }
+    }
+  }
+}
