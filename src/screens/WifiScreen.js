@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startWifiServer, stopWifiServer, setOnFileUploaded } from '../services/wifiUpload';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -9,6 +10,14 @@ export default function WifiScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [address, setAddress] = useState(null);
   const [error, setError] = useState(null);
+
+  // WiFi 页聚焦时隐藏迷你播放条，返回时必然恢复
+  useFocusEffect(
+    useCallback(() => {
+      usePlayerStore.getState().hidePlayerBar();
+      return () => usePlayerStore.getState().showPlayerBar();
+    }, [])
+  );
 
   useEffect(() => {
     let mounted = true;
