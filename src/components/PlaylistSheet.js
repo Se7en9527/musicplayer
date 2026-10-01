@@ -1,14 +1,34 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react-native';
 import { usePlayerStore } from '../store/usePlayerStore';
 import Artwork from './Artwork';
 import { FontAwesome } from '@expo/vector-icons';
 
-// 半屏播放列表：点击弹出，可见全部歌曲，可点击切换
+const ROW_H = 60;
+
+// 半屏播放列表：点击弹出，可见全部歌曲，可点击切换，可定位当前歌
 export default function PlaylistSheet({ visible, onClose }) {
   const queue = usePlayerStore((s) => s.queue);
   const currentIndex = usePlayerStore((s) => s.currentIndex);
   const jumpToQueueIndex = usePlayerStore((s) => s.jumpToQueueIndex);
+  const listRef = useRef(null);
+
+  const locate = (animated) => {
+    if (currentIndex < 0 || !listRef.current) return;
+    try {
+      listRef.current.scrollToIndex({ index: currentIndex, viewPosition: 0.3, animated });
+    } catch (e) {
+      /* index 越界等场景忽略 */
+    }
+  };
+
+  // 打开弹层时自动定位到正在播放的歌
+  useEffect(() => {
+    if (visible) {
+      const t = setTimeout(() => locate(false), 350);
+      return () => clearTimeout(t);
+    }
+  }, [visible, currentIndex]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -18,13 +38,21 @@ export default function PlaylistSheet({ visible, onClose }) {
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>播放列表（{queue.length}）</Text>
-            <TouchableOpacity onPress={onClose}>
-              <FontAwesome name="close" size={20} color="#1a1a1a" />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity style={styles.locateBtn} onPress={() => locate(true)}>
+                <FontAwesome name="crosshairs" size={16} color="#1a1a1a" />
+                <Text style={styles.locateTxt}>定位</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose}>
+                <FontAwesome name="close" size={20} color="#1a1a1a" />
+              </TouchableOpacity>
+            </View>
           </View>
           <FlatList
+            ref={listRef}
             data={queue}
             keyExtractor={(item) => item.id}
+            getItemLayout={(data, index) => ({ length: ROW_H, offset: ROW_H * index, index })}
             renderItem={({ item, index }) => {
               const active = index === currentIndex;
               return (
@@ -91,10 +119,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  locateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f7',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginRight: 12,
+  },
+  locateTxt: { color: '#1a1a1a', fontSize: 12, marginLeft: 4 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    height: ROW_H,
   },
   rowActive: {
     backgroundColor: 'rgba(255,58,58,0.08)',
