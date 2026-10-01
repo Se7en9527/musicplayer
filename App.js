@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePlayerStore } from './src/store/usePlayerStore';
 import LibraryScreen from './src/screens/LibraryScreen';
+import PlaylistsScreen from './src/screens/PlaylistsScreen';
 import MyScreen from './src/screens/MyScreen';
 import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import WifiScreen from './src/screens/WifiScreen';
@@ -52,6 +53,14 @@ function TabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Playlists"
+        component={PlaylistsScreen}
+        options={{
+          title: '歌单',
+          tabBarIcon: ({ color, size }) => <FontAwesome name="th-list" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
         name="My"
         component={MyScreen}
         options={{
@@ -74,6 +83,9 @@ export default function App() {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         usePlayerStore.getState().loadLibrary().catch(() => {});
+      } else if (state === 'background' || state === 'inactive') {
+        // 退后台/锁屏时保存播放状态，重启后迷你播放条可直接恢复
+        usePlayerStore.getState()._persist();
       }
     });
     return () => sub.remove();
