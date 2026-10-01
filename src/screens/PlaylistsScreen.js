@@ -177,9 +177,10 @@ export default function PlaylistsScreen() {
             <Text style={styles.emptySub}>点右上角 ＋ 从音乐库挑选歌曲加入</Text>
           </View>
         ) : (
-          <FlatList
-            ref={listRef}
-            data={plTracks}
+        <FlatList
+          key="pl-detail-list"
+          ref={listRef}
+          data={plTracks}
             keyExtractor={(item) => item.id}
             getItemLayout={(d, index) => ({ length: ROW_H, offset: ROW_H * index, index })}
             contentContainerStyle={{ paddingBottom: 90 }}
@@ -224,8 +225,9 @@ export default function PlaylistsScreen() {
                   <Text style={styles.emptySub}>音乐库还没有歌曲，先去「音乐库」导入</Text>
                 </View>
               ) : (
-                <FlatList
-                  data={library}
+        <FlatList
+          key="pl-add-list"
+          data={library}
                   keyExtractor={(item) => item.id}
                   contentContainerStyle={{ paddingBottom: 20 }}
                   renderItem={({ item }) => {
@@ -295,6 +297,7 @@ export default function PlaylistsScreen() {
         </View>
       ) : (
         <FlatList
+          key="pl-grid-2col"
           data={visiblePlaylists}
           keyExtractor={(item) => item.id}
           numColumns={2}
