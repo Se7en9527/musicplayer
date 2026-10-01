@@ -90,6 +90,7 @@ export const usePlayerStore = create((set, get) => ({
   repeatMode: 'order', // 'order' | 'one' | 'shuffle'
   sortMode: 'title', // 'title' | 'album'
   playlistVisible: false,
+  playerBarHidden: false, // 迷你播放条显隐：播放页/WiFi 页聚焦时隐藏，失焦必然恢复
   playlists: [], // 歌单：[{ id, name, category, trackIds: [] }]
   categories: ['默认'],
   ready: false,
@@ -473,8 +474,18 @@ export const usePlayerStore = create((set, get) => ({
   },
 
   seek: async (pos) => {
-    await TrackPlayer.seekTo(pos);
-    set({ position: pos });
+    // 防原生崩溃：NaN/Infinity/越界值一律钳制后再 seek（拖拽进度条闪退的根源）
+    try {
+      const d = get().duration || 0;
+      let p = Number(pos);
+      if (!isFinite(p)) return;
+      if (d > 0) p = Math.min(Math.max(0, p), Math.max(0, d - 0.2));
+      else p = Math.max(0, p);
+      await TrackPlayer.seekTo(p);
+      set({ position: p });
+    } catch (e) {
+      /* seek 失败不打断播放 */
+    }
   },
 
   jumpToQueueIndex: async (idx) => {
@@ -488,6 +499,9 @@ export const usePlayerStore = create((set, get) => ({
 
   showPlaylist: () => set({ playlistVisible: true }),
   hidePlaylist: () => set({ playlistVisible: false }),
+
+  hidePlayerBar: () => set({ playerBarHidden: true }),
+  showPlayerBar: () => set({ playerBarHidden: false }),
 
   currentTrack: () => {
     const { queue, currentIndex } = get();
