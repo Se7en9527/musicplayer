@@ -23,7 +23,7 @@ export default function SortMenu({ visible, onClose, sortMode, onChange }) {
               }}
             >
               <Text style={[styles.label, sortMode === it.key && styles.active]}>{it.label}</Text>
-              {sortMode === it.key && <FontAwesome name="check" size={16} color="#e60026" />}
+              {sortMode === it.key && <FontAwesome name="check" size={16} color="#ff3a3a" />}
             </TouchableOpacity>
           ))}
         </View>
@@ -39,14 +39,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
     paddingBottom: 28,
   },
   head: {
-    color: '#aaa',
+    color: '#999',
     fontSize: 12,
     marginBottom: 8,
     marginLeft: 4,
@@ -58,14 +58,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#333',
+    borderTopColor: '#eee',
   },
   label: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
   },
   active: {
-    color: '#e60026',
+    color: '#ff3a3a',
     fontWeight: '600',
   },
 });
