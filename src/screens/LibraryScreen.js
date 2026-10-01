@@ -112,6 +112,11 @@ export default function LibraryScreen({ navigation }) {
           data={sorted}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 80 }}
+          ListFooterComponent={
+            library.length > 0 ? (
+              <Text style={styles.footer}>音乐库共 {library.length} 首</Text>
+            ) : null
+          }
           renderItem={({ item, index }) => {
             const active = item.id === currentId;
             return (
@@ -195,6 +200,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
+  footer: { color: '#b0b0b6', fontSize: 12, textAlign: 'center', paddingVertical: 14 },
   emptyTitle: { color: '#1a1a1a', fontSize: 18, fontWeight: '700', marginTop: 16 },
   emptySub: { color: '#9a9a9a', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 20 },
 });
