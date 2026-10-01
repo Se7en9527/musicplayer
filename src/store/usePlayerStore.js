@@ -107,6 +107,8 @@ export const usePlayerStore = create((set, get) => ({
         Capability.SkipToNext,
         Capability.SkipToPrevious,
       ],
+      // v4 必须显式配置，否则不会周期性发 PlaybackProgressUpdated 事件（进度条不动）
+      progressUpdateEventInterval: 1,
     });
     set({ ready: true });
 
@@ -171,7 +173,6 @@ export const usePlayerStore = create((set, get) => ({
       const res = await MediaLibrary.getAssetsAsync({
         mediaType: 'audio',
         first: 1000,
-        sortBy: ['title'],
       });
       const added = [];
       for (const a of res.assets || []) {
