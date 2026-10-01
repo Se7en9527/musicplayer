@@ -9,6 +9,7 @@ import MyScreen from './src/screens/MyScreen';
 import NowPlayingScreen from './src/screens/NowPlayingScreen';
 import WifiScreen from './src/screens/WifiScreen';
 import MiniPlayer from './src/components/MiniPlayer';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { FontAwesome } from '@expo/vector-icons';
 import TrackPlayer from 'react-native-track-player';
 import playbackService from './src/services/trackPlayerService';
@@ -69,14 +70,16 @@ export default function App() {
   }, [init]);
 
   return (
-    <NavigationContainer ref={navRef} theme={theme}>
-      <StatusBar style="light" />
-      <Stack.Navigator screenOptions={{ headerShown: false, presentation: 'modal' }}>
-        <Stack.Screen name="Main" component={TabNavigator} />
-        <Stack.Screen name="NowPlaying" component={NowPlayingScreen} />
-        <Stack.Screen name="Wifi" component={WifiScreen} />
-      </Stack.Navigator>
-      <MiniPlayer onExpand={() => navRef.current?.navigate('NowPlaying')} />
-    </NavigationContainer>
+    <ErrorBoundary>
+      <NavigationContainer ref={navRef} theme={theme}>
+        <StatusBar style="light" />
+        <Stack.Navigator screenOptions={{ headerShown: false, presentation: 'modal' }}>
+          <Stack.Screen name="Main" component={TabNavigator} />
+          <Stack.Screen name="NowPlaying" component={NowPlayingScreen} />
+          <Stack.Screen name="Wifi" component={WifiScreen} />
+        </Stack.Navigator>
+        <MiniPlayer onExpand={() => navRef.current?.navigate('NowPlaying')} />
+      </NavigationContainer>
+    </ErrorBoundary>
   );
 }
