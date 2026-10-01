@@ -17,6 +17,8 @@ const PLAYLISTS_FILE = 'playlists.json';
 // 核心防抖：只有队列内容真正变化时才调用 TrackPlayer.setQueue，
 // 否则 setQueue 会把播放位置重置到第 0 首（表现为"播着 A 突然跳到 B"）。
 let _lastQueueIds = null;
+// 进度自动存档节流
+let _lastAutoPersist = 0;
 
 function isAudio(name) {
   const lower = (name || '').toLowerCase();
@@ -103,6 +105,9 @@ export const usePlayerStore = create((set, get) => ({
       // already setup
     }
     await TrackPlayer.updateOptions({
+      // iOS 音频会话：必须显式声明 playback 类别，否则锁屏/控制中心的远程控制不可靠
+      iosCategory: 'playback',
+      iosCategoryMode: 'default',
       capabilities: [
         Capability.Play,
         Capability.Pause,
@@ -128,6 +133,12 @@ export const usePlayerStore = create((set, get) => ({
     });
     TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, ({ position, duration }) => {
       set({ position, duration: duration || 0 });
+      // 每 5 秒自动存档一次播放进度：用户直接杀 App 时也能记住"退出前听到哪了"
+      const now = Date.now();
+      if (now - _lastAutoPersist > 5000) {
+        _lastAutoPersist = now;
+        get()._persist();
+      }
     });
     // v4 的 track 参数兼容处理：可能是索引(number)也可能是 id(string)
     TrackPlayer.addEventListener(Event.PlaybackTrackChanged, ({ track }) => {
@@ -140,7 +151,9 @@ export const usePlayerStore = create((set, get) => ({
         idx = indexOfId(queue, track);
       }
       if (idx >= 0) {
-        set({ currentIndex: idx, currentId: queue[idx].id });
+        // 切歌时清空上一首残留的时长/进度：
+        // 若沿用上一首更长的 duration，拖拽 seek 会算出超出本歌时长的位置，可能原生越界崩溃
+        set({ currentIndex: idx, currentId: queue[idx].id, position: 0, duration: 0 });
         get()._persist();
       }
     });
@@ -191,8 +204,19 @@ export const usePlayerStore = create((set, get) => ({
       await TrackPlayer.setQueue(queue.map(toTPTrack));
       await TrackPlayer.skip(idx);
       if (get().position > 0) {
+        const target = get().position;
         try {
-          await TrackPlayer.seekTo(get().position);
+          await TrackPlayer.seekTo(target);
+        } catch (e) {}
+        // 校验进度是否真的跳到位（skip 后轨道可能尚未加载完，首次 seek 偶发无效）
+        try {
+          await new Promise((r) => setTimeout(r, 800));
+          const prog = await TrackPlayer.getProgress();
+          if (Math.abs(prog.position - target) > 2) {
+            try {
+              await TrackPlayer.seekTo(target);
+            } catch (e) {}
+          }
         } catch (e) {}
       }
     } catch (e) {
