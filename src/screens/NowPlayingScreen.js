@@ -40,10 +40,10 @@ export default function NowPlayingScreen({ navigation }) {
     return (
       <View style={styles.bg}>
         <TouchableOpacity style={styles.close} onPress={() => navigation.goBack()}>
-          <FontAwesome name="chevron-down" size={22} color="#fff" />
+          <FontAwesome name="chevron-down" size={22} color="#1a1a1a" />
         </TouchableOpacity>
         <View style={styles.centerEmpty}>
-          <Text style={{ color: '#888' }}>暂无播放歌曲</Text>
+          <Text style={{ color: '#999' }}>暂无播放歌曲</Text>
         </View>
       </View>
     );
@@ -55,7 +55,7 @@ export default function NowPlayingScreen({ navigation }) {
     <View style={styles.bg}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.close} onPress={() => navigation.goBack()}>
-          <FontAwesome name="chevron-down" size={22} color="#fff" />
+          <FontAwesome name="chevron-down" size={22} color="#1a1a1a" />
         </TouchableOpacity>
         <View style={styles.topMeta}>
           <Text style={styles.topTitle} numberOfLines={1}>{track.title}</Text>
@@ -86,20 +86,20 @@ export default function NowPlayingScreen({ navigation }) {
 
       <View style={styles.controls}>
         <TouchableOpacity style={styles.ctrl} onPress={cycleRepeat}>
-          <FontAwesome name={REPEAT_ICON[repeatMode]} size={22} color={repeatMode === 'order' ? '#fff' : '#e60026'} />
+          <FontAwesome name={REPEAT_ICON[repeatMode]} size={22} color={repeatMode === 'order' ? '#1a1a1a' : '#ff3a3a'} />
           {repeatMode === 'one' && <View style={styles.oneBadge}><Text style={styles.oneTxt}>1</Text></View>}
         </TouchableOpacity>
         <TouchableOpacity style={styles.ctrl} onPress={() => prev()}>
-          <FontAwesome name="step-backward" size={30} color="#fff" />
+          <FontAwesome name="step-backward" size={30} color="#1a1a1a" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.playBig} onPress={() => togglePlay()}>
           <FontAwesome name={isPlaying ? 'pause' : 'play'} size={34} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.ctrl} onPress={() => next()}>
-          <FontAwesome name="step-forward" size={30} color="#fff" />
+          <FontAwesome name="step-forward" size={30} color="#1a1a1a" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.ctrl} onPress={showPlaylist}>
-          <FontAwesome name="list" size={22} color="#fff" />
+          <FontAwesome name="list" size={22} color="#1a1a1a" />
         </TouchableOpacity>
       </View>
 
@@ -109,7 +109,7 @@ export default function NowPlayingScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: '#0a0a0a', paddingTop: 40 },
+  bg: { flex: 1, backgroundColor: '#f7f7f9', paddingTop: 40 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -118,16 +118,16 @@ const styles = StyleSheet.create({
   },
   close: { width: 30, alignItems: 'center' },
   topMeta: { flex: 1, alignItems: 'center' },
-  topTitle: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  topTitle: { color: '#1a1a1a', fontSize: 15, fontWeight: '600' },
   topArtist: { color: '#999', fontSize: 12, marginTop: 2 },
   vinylWrap: { alignItems: 'center', marginTop: 30, marginBottom: 30 },
   info: { alignItems: 'center', paddingHorizontal: 24 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  title: { color: '#1a1a1a', fontSize: 22, fontWeight: '800' },
   artist: { color: '#999', fontSize: 13, marginTop: 8 },
   progressArea: { paddingHorizontal: 24, marginTop: 24 },
   bar: {
     height: 4,
-    backgroundColor: '#333',
+    backgroundColor: '#e2e2e2',
     borderRadius: 2,
     position: 'relative',
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: '#e60026',
+    backgroundColor: '#ff3a3a',
     borderRadius: 2,
   },
   barThumb: {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 8,
   },
-  time: { color: '#888', fontSize: 12 },
+  time: { color: '#999', fontSize: 12 },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#e60026',
+    backgroundColor: '#ff3a3a',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -182,10 +182,10 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#e60026',
+    backgroundColor: '#ff3a3a',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  oneTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  oneTxt: { color: '#1a1a1a', fontSize: 10, fontWeight: '700' },
   centerEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
