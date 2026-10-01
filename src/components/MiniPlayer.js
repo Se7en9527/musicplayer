@@ -33,7 +33,7 @@ export default function MiniPlayer({ onExpand }) {
         <FontAwesome name={isPlaying ? 'pause' : 'play'} size={20} color="#fff" />
       </TouchableOpacity>
       <TouchableOpacity style={styles.expand} onPress={onExpand}>
-        <FontAwesome name="chevron-up" size={16} color="#fff" />
+        <FontAwesome name="chevron-up" size={16} color="#1a1a1a" />
       </TouchableOpacity>
     </View>
   );
@@ -46,15 +46,17 @@ const styles = StyleSheet.create({
     right: 8,
     height: 56,
     bottom: 8,
-    backgroundColor: 'rgba(20,20,22,0.96)',
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    borderWidth: 1,
+    borderColor: '#ececec',
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
     shadowColor: '#000',
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 10,
+    elevation: 6,
     zIndex: 100,
   },
   row: {
@@ -67,7 +69,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -80,7 +82,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#e60026',
+    backgroundColor: '#ff3a3a',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
