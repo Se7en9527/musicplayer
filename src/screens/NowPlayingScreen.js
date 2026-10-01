@@ -31,7 +31,7 @@ export default function NowPlayingScreen({ navigation }) {
   const hidePlaylist = usePlayerStore((s) => s.hidePlaylist);
 
   const track = queue[currentIndex];
-  const barRef = useRef(null);
+  const barW = useRef(0); // 进度条宽度，onLayout 一次性捕获，拖动时不再调用 measure
   const [modeMenu, setModeMenu] = useState(false);
   const [dragRatio, setDragRatio] = useState(null);
 
@@ -43,32 +43,38 @@ export default function NowPlayingScreen({ navigation }) {
     }, [])
   );
 
-  // 由触摸事件换算进度比例；measure 回调任何异常值都拒绝（NaN 进 seekTo 会原生崩溃）
+  // 用触摸事件自带的 locationX（相对进度条坐标）换算比例：
+  // 之前用 bar.measure() 异步回调，快速拖动/重渲染时会拿到失效视图导致 JS 异常——
+  // 事件回调里的错误不经过 ErrorBoundary，release 包会直接闪退。
+  // 这里全部包 try/catch，任何异常只放弃本次拖拽，绝不外抛。
   const ratioFromEvent = (e) => {
-    const bar = barRef.current;
-    if (!bar || !duration) return null;
-    bar.measure((x, y, w, h, pageX) => {
-      if (!w || !isFinite(w) || !isFinite(pageX) || !isFinite(e.nativeEvent.pageX)) return;
-      const ratio = (e.nativeEvent.pageX - pageX) / w;
-      if (!isFinite(ratio)) return;
-      setDragRatio(Math.min(1, Math.max(0, ratio)));
-    });
+    try {
+      if (!duration) return;
+      const x = e && e.nativeEvent && typeof e.nativeEvent.locationX === 'number' ? e.nativeEvent.locationX : NaN;
+      const w = barW.current;
+      if (!isFinite(x) || !w || w <= 0) return;
+      const ratio = Math.min(1, Math.max(0, x / w));
+      setDragRatio(ratio);
+    } catch (err) {
+      /* 拖拽中的任何异常都只放弃本次预览 */
+    }
   };
   const onBarMove = (e) => {
     ratioFromEvent(e);
   };
   const onBarEnd = (e) => {
-    // 松手时再按最终位置精确 seek（避免异步 measure 回调与 release 时序竞争）
-    const bar = barRef.current;
-    if (bar && duration) {
-      bar.measure((x, y, w, h, pageX) => {
-        if (!w || !isFinite(w) || !isFinite(pageX) || !isFinite(e.nativeEvent.pageX)) return;
-        const ratio = (e.nativeEvent.pageX - pageX) / w;
-        if (!isFinite(ratio)) return;
-        const clamped = Math.min(1, Math.max(0, ratio));
-        setDragRatio(clamped);
-        seek(clamped * duration);
-      });
+    try {
+      if (duration) {
+        const x = e && e.nativeEvent && typeof e.nativeEvent.locationX === 'number' ? e.nativeEvent.locationX : NaN;
+        const w = barW.current;
+        if (isFinite(x) && w && w > 0) {
+          const ratio = Math.min(1, Math.max(0, x / w));
+          setDragRatio(ratio);
+          seek(ratio * duration);
+        }
+      }
+    } catch (err) {
+      /* seek 失败不打断播放 */
     }
     setDragRatio(null);
   };
@@ -113,8 +119,13 @@ export default function NowPlayingScreen({ navigation }) {
 
       <View style={styles.progressArea}>
         <View
-          ref={barRef}
           style={styles.bar}
+          onLayout={(e) => {
+            try {
+              const w = e && e.nativeEvent && e.nativeEvent.layout ? e.nativeEvent.layout.width : NaN;
+              if (isFinite(w) && w > 0) barW.current = w;
+            } catch (err) {}
+          }}
           hitSlop={{ top: 12, bottom: 12 }}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
