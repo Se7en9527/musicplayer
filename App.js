@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -21,25 +22,25 @@ TrackPlayer.registerPlaybackService(() => playbackService);
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-const theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: '#0c0c0c',
-    card: '#0c0c0c',
-    text: '#fff',
-    border: '#222',
-  },
-};
+  const theme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: '#f7f7f9',
+      card: '#ffffff',
+      text: '#1a1a1a',
+      border: '#ececec',
+    },
+  };
 
 function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#0c0c0c', borderTopColor: '#222' },
-        tabBarActiveTintColor: '#e60026',
-        tabBarInactiveTintColor: '#888',
+        tabBarStyle: { backgroundColor: '#ffffff', borderTopColor: '#ececec' },
+        tabBarActiveTintColor: '#ff3a3a',
+        tabBarInactiveTintColor: '#999',
       }}
     >
       <Tab.Screen
@@ -68,13 +69,20 @@ export default function App() {
 
   useEffect(() => {
     init();
+    // 从 iTunes/Finder 文件共享拖入歌曲后，回到 App 时自动重新扫描本地目录
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        usePlayerStore.getState().loadLibrary().catch(() => {});
+      }
+    });
+    return () => sub.remove();
   }, [init]);
 
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
         <NavigationContainer ref={navRef} theme={theme}>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <Stack.Navigator screenOptions={{ headerShown: false, presentation: 'modal' }}>
             <Stack.Screen name="Main" component={TabNavigator} />
             <Stack.Screen name="NowPlaying" component={NowPlayingScreen} />
