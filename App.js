@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -74,8 +74,8 @@ function TabNavigator() {
 
 export default function App() {
   const navRef = useRef(null);
-  const [topRoute, setTopRoute] = useState('Main');
   const init = usePlayerStore((s) => s.init);
+  const playerBarHidden = usePlayerStore((s) => s.playerBarHidden);
 
   useEffect(() => {
     init();
@@ -94,22 +94,15 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <NavigationContainer
-          ref={navRef}
-          theme={theme}
-          onStateChange={() => {
-            const name = navRef.current?.getCurrentRoute()?.name;
-            setTopRoute(name || 'Main');
-          }}
-        >
+        <NavigationContainer ref={navRef} theme={theme}>
           <StatusBar style="dark" />
-          <Stack.Navigator screenOptions={{ headerShown: false, presentation: 'modal' }}>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Main" component={TabNavigator} />
-            <Stack.Screen name="NowPlaying" component={NowPlayingScreen} />
+            <Stack.Screen name="NowPlaying" component={NowPlayingScreen} options={{ presentation: 'modal' }} />
             <Stack.Screen name="Wifi" component={WifiScreen} />
           </Stack.Navigator>
-          {/* 只在主界面（Tab 页）显示迷你播放条；播放页/WiFi 页隐藏，与 QQ 音乐一致 */}
-          {topRoute === 'Main' && <MiniPlayer onExpand={() => navRef.current?.navigate('NowPlaying')} />}
+          {/* 迷你播放条：由页面焦点控制（播放页/WiFi 页聚焦时隐藏，失焦必然恢复） */}
+          {!playerBarHidden && <MiniPlayer onExpand={() => navRef.current?.navigate('NowPlaying')} />}
         </NavigationContainer>
       </SafeAreaProvider>
     </ErrorBoundary>
