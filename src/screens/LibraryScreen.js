@@ -11,18 +11,54 @@ export default function LibraryScreen({ navigation }) {
   const setSortMode = usePlayerStore((s) => s.setSortMode);
   const playFromLibrary = usePlayerStore((s) => s.playFromLibrary);
   const importFromMediaLibrary = usePlayerStore((s) => s.importFromMediaLibrary);
+  const importFromFiles = usePlayerStore((s) => s.importFromFiles);
   const currentId = usePlayerStore((s) => s.currentId);
   const currentIndex = usePlayerStore((s) => s.currentIndex);
   const queue = usePlayerStore((s) => s.queue);
   const [menu, setMenu] = useState(false);
 
   const onImportLib = async () => {
-    const r = await importFromMediaLibrary();
-    if (!r.ok) {
-      if (r.reason === 'denied') Alert.alert('需要授权', '请在系统弹窗中允许访问音乐库');
-      return;
+    try {
+      const r = await importFromMediaLibrary();
+      if (r.ok) {
+        if (r.count > 0) Alert.alert('导入完成', `已从音乐库导入 ${r.count} 首`);
+        else Alert.alert('没有可导入的歌曲', '音乐库里没找到音频文件');
+      } else if (r.reason === 'denied') {
+        Alert.alert('需要授权', '请在系统「设置 → 云音乐」中允许访问音乐库后再试');
+      } else {
+        Alert.alert('导入失败', r.message || '未知错误');
+      }
+    } catch (e) {
+      Alert.alert('导入出错', String((e && e.message) || e));
     }
-    Alert.alert('导入完成', `已从音乐库导入 ${r.count} 首`);
+  };
+
+  const onRefresh = async () => {
+    try {
+      const n = await usePlayerStore.getState().loadLibrary();
+      Alert.alert('已刷新', `本地目录扫描到 ${n} 个音频文件`);
+    } catch (e) {
+      Alert.alert('刷新失败', String((e && e.message) || e));
+    }
+  };
+
+  const onImportFiles = async () => {
+    try {
+      const r = await importFromFiles();
+      if (r.canceled) return;
+      if (r.ok) {
+        if (r.count > 0) {
+          await usePlayerStore.getState().loadLibrary();
+          Alert.alert('导入完成', `已从文件导入 ${r.count} 首到本地`);
+        } else {
+          Alert.alert('没有导入', '未选择音频文件，或所选文件不是音频格式');
+        }
+      } else {
+        Alert.alert('导入失败', r.message || '未知错误');
+      }
+    } catch (e) {
+      Alert.alert('导入出错', String((e && e.message) || e));
+    }
   };
 
   const sorted = [...library].sort((a, b) =>
@@ -35,19 +71,28 @@ export default function LibraryScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.hTitle}>音乐库</Text>
-        <TouchableOpacity style={styles.sortBtn} onPress={() => setMenu(true)}>
-          <FontAwesome name="sort" size={14} color="#fff" />
-          <Text style={styles.sortTxt}>{sortMode === 'album' ? '专辑' : '歌名'} A-Z</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.sortBtn} onPress={() => setMenu(true)}>
+            <FontAwesome name="sort" size={14} color="#333" />
+            <Text style={styles.sortTxt}>{sortMode === 'album' ? '专辑' : '歌名'} A-Z</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.refreshBtn} onPress={onRefresh}>
+            <FontAwesome name="refresh" size={14} color="#333" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.importRow}>
         <TouchableOpacity style={styles.importBtn} onPress={onImportLib}>
-          <FontAwesome name="music" size={16} color="#fff" />
+          <FontAwesome name="music" size={16} color="#333" />
           <Text style={styles.importTxt}>从音乐库导入</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.importBtn} onPress={onImportFiles}>
+          <FontAwesome name="folder" size={16} color="#333" />
+          <Text style={styles.importTxt}>从文件导入</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.importBtn} onPress={() => navigation.getParent()?.navigate('Wifi')}>
-          <FontAwesome name="wifi" size={16} color="#fff" />
+          <FontAwesome name="wifi" size={16} color="#333" />
           <Text style={styles.importTxt}>WiFi 上传</Text>
         </TouchableOpacity>
       </View>
@@ -58,6 +103,7 @@ export default function LibraryScreen({ navigation }) {
           <Text style={styles.emptyTitle}>还没有歌曲</Text>
           <Text style={styles.emptySub}>方式一：用数据线连电脑，在 iTunes/Finder 的「文件共享」里把音乐拖进「云音乐」</Text>
           <Text style={styles.emptySub}>方式二：点上方「从音乐库导入」选择手机里的歌曲</Text>
+          <Text style={styles.emptySub}>方式二 b：点「从文件导入」从「文件」App 或其他 App 选音频文件</Text>
           <Text style={styles.emptySub}>方式三：点「WiFi 上传」用电脑浏览器传歌（需启用插件）</Text>
         </View>
       ) : (
@@ -78,7 +124,7 @@ export default function LibraryScreen({ navigation }) {
                     {item.artist} · {item.album}
                   </Text>
                 </View>
-                {active && <FontAwesome name="volume-up" size={16} color="#e60026" />}
+                {active && <FontAwesome name="volume-up" size={16} color="#ff3a3a" />}
               </TouchableOpacity>
             );
           }}
@@ -91,7 +137,7 @@ export default function LibraryScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0c0c0c' },
+  container: { flex: 1, backgroundColor: '#f7f7f9' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -100,27 +146,37 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
-  hTitle: { color: '#fff', fontSize: 24, fontWeight: '800' },
+  hTitle: { color: '#1a1a1a', fontSize: 24, fontWeight: '800' },
   sortBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#f0f0f2',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
-  sortTxt: { color: '#fff', fontSize: 12, marginLeft: 6 },
-  importRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8 },
+  sortTxt: { color: '#1a1a1a', fontSize: 12, marginLeft: 6 },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  refreshBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f2',
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  importRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginBottom: 8 },
   importBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#f0f0f2',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 18,
     marginRight: 10,
   },
-  importTxt: { color: '#fff', fontSize: 13, marginLeft: 6 },
+  importTxt: { color: '#1a1a1a', fontSize: 13, marginLeft: 6 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -128,15 +184,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   meta: { marginLeft: 12, flex: 1 },
-  name: { color: '#fff', fontSize: 15 },
-  nameActive: { color: '#e60026' },
-  sub: { color: '#888', fontSize: 12, marginTop: 3 },
+  name: { color: '#1a1a1a', fontSize: 15 },
+  nameActive: { color: '#ff3a3a' },
+  sub: { color: '#999', fontSize: 12, marginTop: 3 },
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  emptyTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 },
-  emptySub: { color: '#777', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { color: '#1a1a1a', fontSize: 18, fontWeight: '700', marginTop: 16 },
+  emptySub: { color: '#9a9a9a', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 20 },
 });
