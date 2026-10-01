@@ -8,12 +8,19 @@ export default function MyScreen() {
   const importFromMediaLibrary = usePlayerStore((s) => s.importFromMediaLibrary);
 
   const onImportLib = async () => {
-    const r = await importFromMediaLibrary();
-    if (!r.ok) {
-      if (r.reason === 'denied') Alert.alert('需要授权', '请在系统弹窗中允许访问音乐库');
-      return;
+    try {
+      const r = await importFromMediaLibrary();
+      if (r.ok) {
+        if (r.count > 0) Alert.alert('导入完成', `已从音乐库导入 ${r.count} 首`);
+        else Alert.alert('没有可导入的歌曲', '音乐库里没找到音频文件');
+      } else if (r.reason === 'denied') {
+        Alert.alert('需要授权', '请在系统「设置 → 云音乐」中允许访问音乐库后再试');
+      } else {
+        Alert.alert('导入失败', r.message || '未知错误');
+      }
+    } catch (e) {
+      Alert.alert('导入出错', String((e && e.message) || e));
     }
-    Alert.alert('导入完成', `已从音乐库导入 ${r.count} 首`);
   };
 
   return (
@@ -40,26 +47,26 @@ export default function MyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0c0c0c', paddingTop: 20, paddingHorizontal: 16 },
-  title: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 16 },
+  container: { flex: 1, backgroundColor: '#f7f7f9', paddingTop: 20, paddingHorizontal: 16 },
+  title: { color: '#1a1a1a', fontSize: 24, fontWeight: '800', marginBottom: 16 },
   card: {
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
-  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  cardTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '700' },
   cardSub: { color: '#999', fontSize: 13, marginTop: 6 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1c1c1e',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
   },
-  itemTxt: { color: '#fff', fontSize: 15, marginLeft: 12 },
+  itemTxt: { color: '#1a1a1a', fontSize: 15, marginLeft: 12 },
   tips: { marginTop: 8, padding: 4 },
-  tipsTitle: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 10 },
+  tipsTitle: { color: '#1a1a1a', fontSize: 14, fontWeight: '700', marginBottom: 10 },
   tip: { color: '#999', fontSize: 13, lineHeight: 22, marginBottom: 10 },
 });
