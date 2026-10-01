@@ -19,7 +19,7 @@ export default function PlaylistSheet({ visible, onClose }) {
           <View style={styles.header}>
             <Text style={styles.title}>播放列表（{queue.length}）</Text>
             <TouchableOpacity onPress={onClose}>
-              <FontAwesome name="close" size={20} color="#fff" />
+              <FontAwesome name="close" size={20} color="#1a1a1a" />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -42,7 +42,7 @@ export default function PlaylistSheet({ visible, onClose }) {
                       {item.artist} · {item.album}
                     </Text>
                   </View>
-                  {active && <FontAwesome name="volume-up" size={16} color="#e60026" />}
+                  {active && <FontAwesome name="volume-up" size={16} color="#ff3a3a" />}
                 </TouchableOpacity>
               );
             }}
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     height: '55%',
-    backgroundColor: '#151516',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingTop: 8,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#555',
+    backgroundColor: '#d0d0d0',
     alignSelf: 'center',
     marginVertical: 6,
   },
@@ -84,10 +84,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#2a2a2a',
+    borderBottomColor: '#eee',
   },
   title: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -97,31 +97,31 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   rowActive: {
-    backgroundColor: 'rgba(230,0,38,0.08)',
+    backgroundColor: 'rgba(255,58,58,0.08)',
     borderRadius: 8,
   },
   idx: {
     width: 28,
-    color: '#888',
+    color: '#999',
     fontSize: 13,
     textAlign: 'center',
   },
   idxActive: {
-    color: '#e60026',
+    color: '#ff3a3a',
   },
   meta: {
     marginLeft: 10,
     flex: 1,
   },
   name: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 14,
   },
   nameActive: {
-    color: '#e60026',
+    color: '#ff3a3a',
   },
   sub: {
-    color: '#888',
+    color: '#999',
     fontSize: 12,
     marginTop: 2,
   },
