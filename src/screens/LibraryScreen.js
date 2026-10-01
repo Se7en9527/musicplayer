@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayerStore } from '../store/usePlayerStore';
 import Artwork from '../components/Artwork';
 import SortMenu from '../components/SortMenu';
 import { FontAwesome } from '@expo/vector-icons';
 
 export default function LibraryScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const library = usePlayerStore((s) => s.library);
   const sortMode = usePlayerStore((s) => s.sortMode);
   const setSortMode = usePlayerStore((s) => s.setSortMode);
@@ -68,7 +70,7 @@ export default function LibraryScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.hTitle}>音乐库</Text>
         <View style={styles.headerRight}>
@@ -83,16 +85,16 @@ export default function LibraryScreen({ navigation }) {
       </View>
 
       <View style={styles.importRow}>
-        <TouchableOpacity style={styles.importBtn} onPress={onImportLib}>
-          <FontAwesome name="music" size={16} color="#333" />
+        <TouchableOpacity style={[styles.importBtn, styles.importBtnGap]} onPress={onImportLib}>
+          <FontAwesome name="music" size={14} color="#333" />
           <Text style={styles.importTxt}>从音乐库导入</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.importBtn} onPress={onImportFiles}>
-          <FontAwesome name="folder" size={16} color="#333" />
+        <TouchableOpacity style={[styles.importBtn, styles.importBtnGap]} onPress={onImportFiles}>
+          <FontAwesome name="folder" size={14} color="#333" />
           <Text style={styles.importTxt}>从文件导入</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.importBtn} onPress={() => navigation.getParent()?.navigate('Wifi')}>
-          <FontAwesome name="wifi" size={16} color="#333" />
+          <FontAwesome name="wifi" size={14} color="#333" />
           <Text style={styles.importTxt}>WiFi 上传</Text>
         </TouchableOpacity>
       </View>
@@ -102,9 +104,8 @@ export default function LibraryScreen({ navigation }) {
           <FontAwesome name="folder-open" size={48} color="#444" />
           <Text style={styles.emptyTitle}>还没有歌曲</Text>
           <Text style={styles.emptySub}>方式一：用数据线连电脑，在 iTunes/Finder 的「文件共享」里把音乐拖进「云音乐」</Text>
-          <Text style={styles.emptySub}>方式二：点上方「从音乐库导入」选择手机里的歌曲</Text>
-          <Text style={styles.emptySub}>方式二 b：点「从文件导入」从「文件」App 或其他 App 选音频文件</Text>
-          <Text style={styles.emptySub}>方式三：点「WiFi 上传」用电脑浏览器传歌（需启用插件）</Text>
+          <Text style={styles.emptySub}>方式二：点上方「从音乐库导入」或「从文件导入」选歌</Text>
+          <Text style={styles.emptySub}>方式三：点「WiFi 上传」，电脑浏览器打开提示地址拖歌进去</Text>
         </View>
       ) : (
         <FlatList
@@ -143,7 +144,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   hTitle: { color: '#1a1a1a', fontSize: 24, fontWeight: '800' },
@@ -166,17 +167,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginLeft: 8,
   },
-  importRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginBottom: 8 },
+  importRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, marginTop: 4 },
   importBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#f0f0f2',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 18,
-    marginRight: 10,
   },
-  importTxt: { color: '#1a1a1a', fontSize: 13, marginLeft: 6 },
+  importBtnGap: { marginRight: 8 },
+  importTxt: { color: '#1a1a1a', fontSize: 12, marginLeft: 5 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
