@@ -12,10 +12,10 @@ export default function Artwork({ title, hue, size = 48, radius = 6 }) {
     <View
       style={[
         styles.box,
-        { width: size, height: size, borderRadius: radius, backgroundColor: `hsl(${h}, 45%, 30%)` },
+        { width: size, height: size, borderRadius: radius, backgroundColor: `hsl(${h}, 55%, 62%)` },
       ]}
     >
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: `hsl(${h}, 55%, 18%)`, opacity: 0.5 }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: `hsl(${h}, 60%, 42%)`, opacity: 0.5 }]} />
       <Text style={[styles.letter, { fontSize: size * 0.4 }]}>{letter}</Text>
     </View>
   );
