@@ -7,6 +7,7 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
+import * as DocumentPicker from 'expo-document-picker';
 
 const AUDIO_EXT = ['.mp3', '.m4a', '.aac', '.wav', '.flac', '.opus', '.ogg', '.wma'];
 
@@ -157,38 +158,96 @@ export const usePlayerStore = create((set, get) => ({
   },
 
   importFromMediaLibrary: async () => {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== 'granted') return { ok: false, reason: 'denied' };
-    const res = await MediaLibrary.getAssetsAsync({
-      mediaType: 'audio',
-      first: 1000,
-      sortBy: ['title'],
-    });
-    const added = [];
-    for (const a of res.assets) {
-      let url = a.uri;
-      try {
-        const info = await MediaLibrary.getAssetInfoAsync(a.id);
-        if (info && info.localUri) url = info.localUri;
-      } catch (e) {
-        /* ignore */
+    try {
+      let perm = await MediaLibrary.getPermissionsAsync();
+      let status = perm.status;
+      if (status !== 'granted' && status !== 'limited') {
+        const req = await MediaLibrary.requestPermissionsAsync();
+        status = req.status;
       }
-      added.push({
-        id: 'lib_' + a.id,
-        title: cleanTitle(a.filename || a.title || a.id),
-        artist: '未知歌手',
-        album: a.albumTitle || '音乐库',
-        url,
-        uri: url,
-        artwork: null,
-        hue: hashHue(a.filename || a.title || a.id),
-        source: 'lib',
+      if (status !== 'granted' && status !== 'limited') {
+        return { ok: false, reason: 'denied' };
+      }
+      const res = await MediaLibrary.getAssetsAsync({
+        mediaType: 'audio',
+        first: 1000,
+        sortBy: ['title'],
       });
+      const added = [];
+      for (const a of res.assets || []) {
+        let url = a.uri;
+        try {
+          const info = await MediaLibrary.getAssetInfoAsync(a.id);
+          if (info && info.localUri) url = info.localUri;
+        } catch (e) {
+          /* ignore */
+        }
+        added.push({
+          id: 'lib_' + a.id,
+          title: cleanTitle(a.filename || a.title || a.id),
+          artist: '未知歌手',
+          album: a.albumTitle || '音乐库',
+          url,
+          uri: url,
+          artwork: null,
+          hue: hashHue(a.filename || a.title || a.id),
+          source: 'lib',
+        });
+      }
+      const merged = mergeById(get().library, added);
+      set({ library: merged });
+      get()._rebuildQueue(merged);
+      return { ok: true, count: added.length };
+    } catch (e) {
+      return { ok: false, reason: 'error', message: String((e && e.message) || e) };
     }
-    const merged = mergeById(get().library, added);
-    set({ library: merged });
-    get()._rebuildQueue(merged);
-    return { ok: true, count: added.length };
+  },
+
+  // 从「文件」App / 其他 App 通过系统选择器导入音频，拷入本地 Documents 持久化
+  importFromFiles: async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['audio/*', 'application/mp3', 'application/m4a', 'application/x-m4a', 'application/octet-stream'],
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return { ok: true, count: 0, canceled: true };
+      const assets = result.assets || [];
+      const dir = FileSystem.documentDirectory;
+      const added = [];
+      let copied = 0;
+      for (const a of assets) {
+        const name = a.name || (a.uri || '').split('/').pop() || 'track';
+        if (!isAudio(name)) continue;
+        const dest = dir + name;
+        try {
+          const info = await FileSystem.getInfoAsync(dest);
+          if (!info.exists) {
+            await FileSystem.copyAsync({ from: a.uri, to: dest });
+          }
+          copied++;
+          added.push({
+            id: 'doc_' + name,
+            title: cleanTitle(name),
+            artist: '未知歌手',
+            album: '本地音乐',
+            url: dest,
+            uri: dest,
+            artwork: null,
+            hue: hashHue(name),
+            source: 'doc',
+          });
+        } catch (e) {
+          /* 单个文件失败不影响其余 */
+        }
+      }
+      const merged = mergeById(get().library, added);
+      set({ library: merged });
+      get()._rebuildQueue(merged);
+      return { ok: true, count: copied };
+    } catch (e) {
+      return { ok: false, reason: 'error', message: String((e && e.message) || e) };
+    }
   },
 
   _rebuildQueue: (library) => {
