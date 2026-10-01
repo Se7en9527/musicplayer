@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { usePlayerStore } from '../store/usePlayerStore';
 import Vinyl from '../components/Vinyl';
 import PlaylistSheet from '../components/PlaylistSheet';
@@ -34,15 +35,41 @@ export default function NowPlayingScreen({ navigation }) {
   const [modeMenu, setModeMenu] = useState(false);
   const [dragRatio, setDragRatio] = useState(null);
 
-  const onBarMove = (e) => {
-    if (!barRef.current || !duration) return;
-    barRef.current.measure((x, y, w, h, pageX) => {
-      const ratio = Math.min(1, Math.max(0, (e.nativeEvent.pageX - pageX) / w));
-      setDragRatio(ratio);
+  // 播放页聚焦时隐藏迷你播放条，失焦（含左上角箭头收起/侧滑）时必然恢复
+  useFocusEffect(
+    useCallback(() => {
+      usePlayerStore.getState().hidePlayerBar();
+      return () => usePlayerStore.getState().showPlayerBar();
+    }, [])
+  );
+
+  // 由触摸事件换算进度比例；measure 回调任何异常值都拒绝（NaN 进 seekTo 会原生崩溃）
+  const ratioFromEvent = (e) => {
+    const bar = barRef.current;
+    if (!bar || !duration) return null;
+    bar.measure((x, y, w, h, pageX) => {
+      if (!w || !isFinite(w) || !isFinite(pageX) || !isFinite(e.nativeEvent.pageX)) return;
+      const ratio = (e.nativeEvent.pageX - pageX) / w;
+      if (!isFinite(ratio)) return;
+      setDragRatio(Math.min(1, Math.max(0, ratio)));
     });
   };
-  const onBarEnd = () => {
-    if (dragRatio != null && duration) seek(dragRatio * duration);
+  const onBarMove = (e) => {
+    ratioFromEvent(e);
+  };
+  const onBarEnd = (e) => {
+    // 松手时再按最终位置精确 seek（避免异步 measure 回调与 release 时序竞争）
+    const bar = barRef.current;
+    if (bar && duration) {
+      bar.measure((x, y, w, h, pageX) => {
+        if (!w || !isFinite(w) || !isFinite(pageX) || !isFinite(e.nativeEvent.pageX)) return;
+        const ratio = (e.nativeEvent.pageX - pageX) / w;
+        if (!isFinite(ratio)) return;
+        const clamped = Math.min(1, Math.max(0, ratio));
+        setDragRatio(clamped);
+        seek(clamped * duration);
+      });
+    }
     setDragRatio(null);
   };
 
