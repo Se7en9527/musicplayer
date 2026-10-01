@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { FontAwesome } from '@expo/vector-icons';
 
 export default function MyScreen() {
+  const insets = useSafeAreaInsets();
   const library = usePlayerStore((s) => s.library);
   const importFromMediaLibrary = usePlayerStore((s) => s.importFromMediaLibrary);
 
@@ -24,7 +26,7 @@ export default function MyScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <Text style={styles.title}>我的</Text>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>云音乐 · 离线播放器</Text>
@@ -32,14 +34,14 @@ export default function MyScreen() {
       </View>
 
       <TouchableOpacity style={styles.item} onPress={onImportLib}>
-        <FontAwesome name="music" size={18} color="#e60026" />
+        <FontAwesome name="music" size={18} color="#ff3a3a" />
         <Text style={styles.itemTxt}>从手机音乐库导入</Text>
       </TouchableOpacity>
 
       <View style={styles.tips}>
         <Text style={styles.tipsTitle}>如何把电脑上的歌弄进来（不联网）</Text>
         <Text style={styles.tip}>1. 数据线连电脑，打开 iTunes / Finder → 设备 → 文件共享 → 选「云音乐」→ 拖入 mp3/m4a 等音频文件</Text>
-        <Text style={styles.tip}>2. 或在「音乐库」页面点「WiFi 上传」，手机电脑同一 WiFi，浏览器打开提示的地址拖歌进去（需启用 WiFi 插件）</Text>
+        <Text style={styles.tip}>2. 或在「音乐库」页面点「WiFi 上传」，手机电脑同一 WiFi，浏览器打开提示的地址拖歌进去</Text>
         <Text style={styles.tip}>3. 或点「从手机音乐库导入」直接读取本机已授权的歌曲</Text>
       </View>
     </View>
