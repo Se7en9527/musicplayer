@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayerStore } from '../store/usePlayerStore';
 import Artwork from '../components/Artwork';
 import SortMenu from '../components/SortMenu';
+import PlaylistSheet from '../components/PlaylistSheet';
 import { FontAwesome } from '@expo/vector-icons';
 
 export default function LibraryScreen({ navigation }) {
@@ -18,6 +19,7 @@ export default function LibraryScreen({ navigation }) {
   const currentIndex = usePlayerStore((s) => s.currentIndex);
   const queue = usePlayerStore((s) => s.queue);
   const [menu, setMenu] = useState(false);
+  const [queueSheet, setQueueSheet] = useState(false);
 
   const onImportLib = async () => {
     try {
@@ -81,6 +83,12 @@ export default function LibraryScreen({ navigation }) {
           <TouchableOpacity style={styles.refreshBtn} onPress={onRefresh}>
             <FontAwesome name="refresh" size={14} color="#333" />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.refreshBtn}
+            onPress={() => setQueueSheet(true)}
+          >
+            <FontAwesome name="list" size={15} color="#333" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -138,6 +146,8 @@ export default function LibraryScreen({ navigation }) {
       )}
 
       <SortMenu visible={menu} onClose={() => setMenu(false)} sortMode={sortMode} onChange={setSortMode} />
+      {/* 当前播放队列（半屏），含「定位当前歌」功能 */}
+      <PlaylistSheet visible={queueSheet} onClose={() => setQueueSheet(false)} />
     </View>
   );
 }
