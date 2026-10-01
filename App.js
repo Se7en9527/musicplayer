@@ -15,10 +15,12 @@ import MiniPlayer from './src/components/MiniPlayer';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { FontAwesome } from '@expo/vector-icons';
 import TrackPlayer from 'react-native-track-player';
-import playbackService from './src/services/trackPlayerService';
 
-// 注册后台播放服务（锁屏/控制中心/线控），必须在模块顶层注册一次
-TrackPlayer.registerPlaybackService(() => playbackService);
+// 注册后台播放服务（锁屏/控制中心/线控）。
+// 必须用 require 懒加载 service 模块（RNTP v4 官方要求）：锁屏后 App 进入后台，
+// service 会在独立 JS 线程被重新加载；若用 import 预加载函数，后台线程取不到该模块，
+// Remote* 事件监听器不生效 → 表现为"锁屏按钮有反应但音乐不停/不切歌"。
+TrackPlayer.registerPlaybackService(() => require('./src/services/trackPlayerService'));
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
