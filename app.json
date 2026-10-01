@@ -18,7 +18,6 @@
       "bundleIdentifier": "com.example.musicplayer",
       "infoPlist": {
         "UIBackgroundModes": [
-          "audio",
           "audio"
         ],
         "NSAppleMusicUsageDescription": "需要访问您的音乐库以导入本地歌曲到播放器",
@@ -27,6 +26,9 @@
         "UIFileSharingEnabled": true,
         "ITSAppUsesNonExemptEncryption": false
       }
+    },
+    "updates": {
+      "enabled": false
     },
     "plugins": [
       "expo-media-library"
