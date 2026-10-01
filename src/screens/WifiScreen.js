@@ -1,66 +1,61 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { isWifiSupported, startWifiServer, stopWifiServer, getWifiAddress } from '../services/wifiUpload';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { startWifiServer, stopWifiServer, setOnFileUploaded } from '../services/wifiUpload';
+import { usePlayerStore } from '../store/usePlayerStore';
 import { FontAwesome } from '@expo/vector-icons';
 
 export default function WifiScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [address, setAddress] = useState(null);
-  const [supported] = useState(isWifiSupported());
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let mounted = true;
-    if (supported) {
-      startWifiServer()
-        .then(() => getWifiAddress())
-        .then((addr) => mounted && setAddress(addr))
-        .catch((e) => Alert.alert('启动失败', String(e && e.message)));
-    }
+    // 收到上传的文件后自动刷新音乐库
+    setOnFileUploaded(() => {
+      usePlayerStore.getState().loadLibrary().catch(() => {});
+    });
+    startWifiServer()
+      .then((addr) => {
+        if (mounted) setAddress(addr);
+      })
+      .catch((e) => {
+        if (mounted) setError(String((e && e.message) || e));
+      });
     return () => {
       mounted = false;
-      if (supported) stopWifiServer().catch(() => {});
+      stopWifiServer();
     };
-  }, [supported]);
-
-  const Header = (
-    <View style={styles.headerBar}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation?.goBack()}>
-        <FontAwesome name="chevron-left" size={22} color="#fff" />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>WiFi 上传</Text>
-      <View style={{ width: 30 }} />
-    </View>
-  );
-
-  if (!supported) {
-    return (
-      <View style={styles.container}>
-        {Header}
-        <View style={styles.body}>
-          <FontAwesome name="wifi" size={40} color="#444" />
-          <Text style={styles.title}>WiFi 上传未启用</Text>
-          <Text style={styles.sub}>当前安装包未包含 WiFi 上传原生模块。</Text>
-          <Text style={styles.sub}>最快的替代方式：用数据线连电脑，在 iTunes/Finder「文件共享」里把音频拖进「云音乐」即可。</Text>
-          <Text style={styles.sub}>如需启用 WiFi 上传：在 app.json 的 plugins 中加上 "./plugins/withWifiServer.js" 并重新构建（详见 README）。</Text>
-        </View>
-      </View>
-    );
-  }
+  }, []);
 
   return (
-    <View style={styles.container}>
-      {Header}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.headerBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation?.goBack()}>
+          <FontAwesome name="chevron-left" size={22} color="#1a1a1a" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>WiFi 上传</Text>
+        <View style={{ width: 34 }} />
+      </View>
       <View style={styles.body}>
         <FontAwesome name="wifi" size={40} color="#ff3a3a" />
-        <Text style={styles.title}>WiFi 上传</Text>
-        {address ? (
+        <Text style={styles.title}>电脑传歌到手机</Text>
+        {error ? (
+          <Text style={styles.sub}>启动失败：{error}</Text>
+        ) : address ? (
           <>
-            <Text style={styles.sub}>电脑连同一 WiFi，浏览器打开：</Text>
+            <Text style={styles.sub}>手机和电脑连同一个 WiFi，电脑浏览器打开：</Text>
             <Text style={styles.addr}>{address}</Text>
-            <Text style={styles.sub}>打开后把音乐文件拖进页面即可传到手机。</Text>
+            <Text style={styles.sub}>打开页面 → 选择音乐文件 → 开始上传。</Text>
+            <Text style={styles.sub}>上传完成后自动进入音乐库。</Text>
           </>
         ) : (
           <Text style={styles.sub}>正在启动本地服务…</Text>
         )}
+        <Text style={styles.tip}>
+          提示：若浏览器打不开该地址，请在手机「设置 → 隐私与安全性 → 本地网络」中允许「云音乐」。
+        </Text>
       </View>
     </View>
   );
@@ -72,7 +67,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingTop: 40,
+    paddingTop: 8,
     paddingBottom: 12,
   },
   backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
@@ -84,14 +79,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   title: { color: '#1a1a1a', fontSize: 20, fontWeight: '700', marginTop: 16 },
-  sub: { color: '#999', fontSize: 13, marginTop: 12, textAlign: 'center', lineHeight: 20 },
+  sub: { color: '#666', fontSize: 13, marginTop: 12, textAlign: 'center', lineHeight: 20 },
   addr: {
     color: '#ff3a3a',
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 12,
-    padding: 10,
-    backgroundColor: '#1c1c1e',
-    borderRadius: 8,
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
+  tip: { color: '#b0b0b0', fontSize: 12, marginTop: 24, textAlign: 'center', lineHeight: 18 },
 });
