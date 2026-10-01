@@ -3,6 +3,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePlayerStore } from './src/store/usePlayerStore';
 import LibraryScreen from './src/screens/LibraryScreen';
 import MyScreen from './src/screens/MyScreen';
@@ -71,15 +72,17 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <NavigationContainer ref={navRef} theme={theme}>
-        <StatusBar style="light" />
-        <Stack.Navigator screenOptions={{ headerShown: false, presentation: 'modal' }}>
-          <Stack.Screen name="Main" component={TabNavigator} />
-          <Stack.Screen name="NowPlaying" component={NowPlayingScreen} />
-          <Stack.Screen name="Wifi" component={WifiScreen} />
-        </Stack.Navigator>
-        <MiniPlayer onExpand={() => navRef.current?.navigate('NowPlaying')} />
-      </NavigationContainer>
+      <SafeAreaProvider>
+        <NavigationContainer ref={navRef} theme={theme}>
+          <StatusBar style="light" />
+          <Stack.Navigator screenOptions={{ headerShown: false, presentation: 'modal' }}>
+            <Stack.Screen name="Main" component={TabNavigator} />
+            <Stack.Screen name="NowPlaying" component={NowPlayingScreen} />
+            <Stack.Screen name="Wifi" component={WifiScreen} />
+          </Stack.Navigator>
+          <MiniPlayer onExpand={() => navRef.current?.navigate('NowPlaying')} />
+        </NavigationContainer>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
