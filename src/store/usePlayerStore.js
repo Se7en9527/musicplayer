@@ -385,11 +385,14 @@ export const usePlayerStore = create((set, get) => ({
     }
 
     // 关键修复：只有队列内容真正变化才同步 TrackPlayer，
-    // 且同步后跳回当前歌继续播（而不是从第 0 首开始 = "播 A 跳 B" 的根源）
+    // 且同步后跳回当前歌"原进度"继续播（而不是从第 0 首开始 = "播 A 跳 B" / 切排序重播的根源）。
     const ids = queue.map((t) => t.id).join('|');
     if (get().ready && queue.length > 0 && ids !== _lastQueueIds) {
       const wasPlaying = get().isPlaying;
       const targetId = get().currentId;
+      // skip 会触发 PlaybackTrackChanged 把 position 重置为 0，必须在 skip 前捕获真实进度，
+      // 否则 seek 时会读到被清零的 position → 当前歌从头重播。
+      const resumePos = get().position;
       _lastQueueIds = ids;
       TrackPlayer.setQueue(queue.map(toTPTrack))
         .then(async () => {
@@ -397,6 +400,12 @@ export const usePlayerStore = create((set, get) => ({
           if (idx >= 0) {
             try {
               await TrackPlayer.skip(idx);
+            } catch (e) {}
+          }
+          // 重建队列后回到当前歌原进度继续播（暂停态则停在进度处不自动 play）
+          if (resumePos > 0) {
+            try {
+              await TrackPlayer.seekTo(resumePos);
             } catch (e) {}
           }
           if (wasPlaying) {
@@ -415,12 +424,55 @@ export const usePlayerStore = create((set, get) => ({
     get()._rebuildQueue(get().library);
   },
 
-  setRepeatMode: (mode) => {
+  setRepeatMode: async (mode) => {
+    const { queue, currentId, position, sortMode, library } = get();
     set({ repeatMode: mode });
+
+    // 原生层 repeatMode：单曲循环用 One，其余（顺序/随机）用 Queue。
+    // 随机顺序由我们洗牌队列实现，不依赖原生随机模式。
     const rm = mode === 'one' ? RepeatMode.One : RepeatMode.Queue;
-    TrackPlayer.setRepeatMode(rm).catch(() => {});
-    // 只有切到随机才需要重新洗牌；单曲循环/顺序播放不动队列（避免打断当前歌）
-    get()._rebuildQueue(get().library, { reshuffle: mode === 'shuffle' });
+    try { await TrackPlayer.setRepeatMode(rm); } catch (e) {}
+
+    // 计算新模式对应的队列顺序
+    let newQueue;
+    let targetIdx = 0;
+    if (mode === 'shuffle') {
+      // 随机：当前正在播的歌置顶继续播放（下一首才随机），避免当前歌从头重播
+      const cur = queue.find((t) => t.id === currentId);
+      const rest = queue.filter((t) => t.id !== currentId);
+      newQueue = (cur ? [cur] : []).concat(shuffle(rest));
+      targetIdx = 0;
+    } else {
+      // 顺序/单曲循环：按音乐库排序（保留 extras），当前歌停在原有排序位置继续播，
+      // 下一首自然是当前歌之后那首，符合"从下一首开始受影响"的诉求。
+      const sortedLib = sortTracks(library, sortMode);
+      const libIds = new Set(library.map((t) => t.id));
+      const extras = queue.filter(
+        (t) => t && (t.url || t.uri) && !libIds.has(t.id) && (t.source === 'lib' || t.id === currentId)
+      );
+      newQueue = sortedLib.concat(extras);
+      const idx = indexOfId(newQueue, currentId);
+      targetIdx = idx >= 0 ? idx : 0;
+    }
+
+    const newIds = newQueue.map((t) => t.id).join('|');
+
+    // 仅当队列顺序真的变化时才动底层播放器；顺序↔单曲之间切换时队列顺序不变，
+    // 坚决不重建队列、不 skip，当前歌完全不受影响（修复"点模式就重播"）。
+    if (newIds === _lastQueueIds) {
+      get()._persist();
+      return;
+    }
+
+    set({ queue: newQueue, currentIndex: targetIdx, currentId });
+    _lastQueueIds = newIds;
+    try {
+      await TrackPlayer.setQueue(newQueue.map(toTPTrack));
+      await TrackPlayer.skip(targetIdx);
+      // 关键：重建队列会清掉当前进度，必须 seek 回原进度，否则当前歌从头重播
+      if (position > 0) await TrackPlayer.seekTo(position);
+    } catch (e) {}
+    get()._persist();
   },
 
   cycleRepeat: () => {
