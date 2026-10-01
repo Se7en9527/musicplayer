@@ -26,7 +26,7 @@ export default class ErrorBoundary extends React.Component {
 }
 
 const styles = StyleSheet.create({
-  box: { flex: 1, backgroundColor: '#0c0c0c', padding: 20, paddingTop: 60 },
-  title: { color: '#e60026', fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  msg: { color: '#ddd', fontSize: 12, lineHeight: 20 },
+  box: { flex: 1, backgroundColor: '#ffffff', padding: 20, paddingTop: 60 },
+  title: { color: '#ff3a3a', fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  msg: { color: '#333', fontSize: 12, lineHeight: 20 },
 });
