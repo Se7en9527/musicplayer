@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { usePlayerStore } from '../store/usePlayerStore';
 import Vinyl from '../components/Vinyl';
 import PlaylistSheet from '../components/PlaylistSheet';
@@ -7,7 +7,11 @@ import { FontAwesome } from '@expo/vector-icons';
 import { formatTime } from '../utils/format';
 
 const REPEAT_ICON = { order: 'repeat', shuffle: 'random', one: 'repeat' };
-const REPEAT_LABEL = { order: '顺序播放', shuffle: '随机播放', one: '单曲循环' };
+const MODE_ITEMS = [
+  { key: 'shuffle', label: '随机播放' },
+  { key: 'order', label: '顺序播放' },
+  { key: 'one', label: '单曲循环' },
+];
 
 export default function NowPlayingScreen({ navigation }) {
   const queue = usePlayerStore((s) => s.queue);
@@ -19,7 +23,7 @@ export default function NowPlayingScreen({ navigation }) {
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const next = usePlayerStore((s) => s.next);
   const prev = usePlayerStore((s) => s.prev);
-  const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
+  const setRepeatMode = usePlayerStore((s) => s.setRepeatMode);
   const seek = usePlayerStore((s) => s.seek);
   const showPlaylist = usePlayerStore((s) => s.showPlaylist);
   const playlistVisible = usePlayerStore((s) => s.playlistVisible);
@@ -27,13 +31,19 @@ export default function NowPlayingScreen({ navigation }) {
 
   const track = queue[currentIndex];
   const barRef = useRef(null);
+  const [modeMenu, setModeMenu] = useState(false);
+  const [dragRatio, setDragRatio] = useState(null);
 
-  const onSeek = (e) => {
+  const onBarMove = (e) => {
     if (!barRef.current || !duration) return;
     barRef.current.measure((x, y, w, h, pageX) => {
       const ratio = Math.min(1, Math.max(0, (e.nativeEvent.pageX - pageX) / w));
-      seek(ratio * duration);
+      setDragRatio(ratio);
     });
+  };
+  const onBarEnd = () => {
+    if (dragRatio != null && duration) seek(dragRatio * duration);
+    setDragRatio(null);
   };
 
   if (!track) {
@@ -50,6 +60,7 @@ export default function NowPlayingScreen({ navigation }) {
   }
 
   const progress = duration ? position / duration : 0;
+  const shownRatio = dragRatio != null ? dragRatio : progress;
 
   return (
     <View style={styles.bg}>
@@ -74,18 +85,27 @@ export default function NowPlayingScreen({ navigation }) {
       </View>
 
       <View style={styles.progressArea}>
-        <View ref={barRef} style={styles.bar} onStartShouldSetResponder={() => true} onResponderRelease={onSeek}>
-          <View style={[styles.barFill, { width: `${progress * 100}%` }]} />
-          <View style={[styles.barThumb, { left: `${progress * 100}%` }]} />
+        <View
+          ref={barRef}
+          style={styles.bar}
+          hitSlop={{ top: 12, bottom: 12 }}
+          onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => true}
+          onResponderGrant={onBarMove}
+          onResponderMove={onBarMove}
+          onResponderRelease={onBarEnd}
+        >
+          <View style={[styles.barFill, { width: `${shownRatio * 100}%` }]} />
+          <View style={[styles.barThumb, { left: `${shownRatio * 100}%` }]} />
         </View>
         <View style={styles.times}>
-          <Text style={styles.time}>{formatTime(position)}</Text>
+          <Text style={styles.time}>{formatTime((shownRatio || 0) * (duration || 0))}</Text>
           <Text style={styles.time}>{formatTime(duration)}</Text>
         </View>
       </View>
 
       <View style={styles.controls}>
-        <TouchableOpacity style={styles.ctrl} onPress={cycleRepeat}>
+        <TouchableOpacity style={styles.ctrl} onPress={() => setModeMenu(true)}>
           <FontAwesome name={REPEAT_ICON[repeatMode]} size={22} color={repeatMode === 'order' ? '#1a1a1a' : '#ff3a3a'} />
           {repeatMode === 'one' && <View style={styles.oneBadge}><Text style={styles.oneTxt}>1</Text></View>}
         </TouchableOpacity>
@@ -104,6 +124,35 @@ export default function NowPlayingScreen({ navigation }) {
       </View>
 
       <PlaylistSheet visible={playlistVisible} onClose={hidePlaylist} />
+
+      {/* 播放模式菜单（QQ 音乐式弹出菜单） */}
+      <Modal transparent visible={modeMenu} animationType="fade" onRequestClose={() => setModeMenu(false)}>
+        <TouchableOpacity style={styles.menuMask} activeOpacity={1} onPress={() => setModeMenu(false)}>
+          <View style={styles.modeMenu}>
+            {MODE_ITEMS.map((it) => {
+              const active = repeatMode === it.key;
+              return (
+                <TouchableOpacity
+                  key={it.key}
+                  style={styles.modeItem}
+                  onPress={() => {
+                    setRepeatMode(it.key);
+                    setModeMenu(false);
+                  }}
+                >
+                  <FontAwesome
+                    name={it.key === 'shuffle' ? 'random' : 'repeat'}
+                    size={15}
+                    color={active ? '#ff3a3a' : '#1a1a1a'}
+                  />
+                  <Text style={[styles.modeLabel, active && styles.modeActive]}>{it.label}</Text>
+                  {active && <FontAwesome name="check" size={14} color="#ff3a3a" />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -188,4 +237,30 @@ const styles = StyleSheet.create({
   },
   oneTxt: { color: '#1a1a1a', fontSize: 10, fontWeight: '700' },
   centerEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  menuMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    paddingBottom: 150,
+    paddingLeft: 24,
+  },
+  modeMenu: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 4,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  modeLabel: { color: '#1a1a1a', fontSize: 15, marginLeft: 12, flex: 1 },
+  modeActive: { color: '#ff3a3a', fontWeight: '600' },
 });
