@@ -17,7 +17,7 @@ export default function MiniPlayer({ onExpand }) {
   if (!track) return null;
 
   return (
-    <View style={[styles.container, { bottom: insets.bottom + 56 + 6 }]}>
+    <View style={[styles.container, { bottom: insets.bottom + 49 }]}>
       <TouchableOpacity style={styles.row} activeOpacity={0.9} onPress={onExpand}>
         <Artwork title={track.title} hue={track.hue} size={42} radius={6} />
         <View style={styles.meta}>
@@ -42,21 +42,16 @@ export default function MiniPlayer({ onExpand }) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 8,
-    right: 8,
+    left: 0,
+    right: 0,
     height: 56,
-    bottom: 8,
-    backgroundColor: 'rgba(255,255,255,0.98)',
-    borderWidth: 1,
-    borderColor: '#ececec',
-    borderRadius: 12,
+    bottom: 49,
+    backgroundColor: '#ffffff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e5e5e5',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingHorizontal: 12,
     zIndex: 100,
   },
   row: {
