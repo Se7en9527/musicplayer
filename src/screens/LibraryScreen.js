@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayerStore } from '../store/usePlayerStore';
 import Artwork from '../components/Artwork';
 import SortMenu from '../components/SortMenu';
-import PlaylistSheet from '../components/PlaylistSheet';
 import { FontAwesome } from '@expo/vector-icons';
+
+// 歌曲行固定高度（Artwork 48 + 上下 padding 10*2），供 getItemLayout 精确定位
+const ROW_H = 68;
 
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -16,10 +18,23 @@ export default function LibraryScreen({ navigation }) {
   const importFromMediaLibrary = usePlayerStore((s) => s.importFromMediaLibrary);
   const importFromFiles = usePlayerStore((s) => s.importFromFiles);
   const currentId = usePlayerStore((s) => s.currentId);
-  const currentIndex = usePlayerStore((s) => s.currentIndex);
   const queue = usePlayerStore((s) => s.queue);
   const [menu, setMenu] = useState(false);
-  const [queueSheet, setQueueSheet] = useState(false);
+  const [locateFlash, setLocateFlash] = useState(false);
+  const listRef = useRef(null);
+
+  // QQ 音乐式悬浮定位：滚到正在播的歌并短暂高亮
+  const onLocate = () => {
+    try {
+      const idx = sorted.findIndex((t) => t.id === currentId);
+      if (idx < 0 || !listRef.current) return;
+      listRef.current.scrollToIndex({ index: idx, viewPosition: 0.5, animated: true });
+      setLocateFlash(true);
+      setTimeout(() => setLocateFlash(false), 1800);
+    } catch (e) {
+      /* 定位失败不影响其他功能 */
+    }
+  };
 
   const onImportLib = async () => {
     try {
@@ -83,12 +98,6 @@ export default function LibraryScreen({ navigation }) {
           <TouchableOpacity style={styles.refreshBtn} onPress={onRefresh}>
             <FontAwesome name="refresh" size={14} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.refreshBtn}
-            onPress={() => setQueueSheet(true)}
-          >
-            <FontAwesome name="list" size={15} color="#333" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -117,9 +126,11 @@ export default function LibraryScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={sorted}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 80 }}
+          getItemLayout={(_, index) => ({ length: ROW_H, offset: ROW_H * index, index })}
           ListFooterComponent={
             library.length > 0 ? (
               <Text style={styles.footer}>音乐库共 {library.length} 首</Text>
@@ -127,8 +138,12 @@ export default function LibraryScreen({ navigation }) {
           }
           renderItem={({ item, index }) => {
             const active = item.id === currentId;
+            const flash = active && locateFlash;
             return (
-              <TouchableOpacity style={styles.row} onPress={() => playFromLibrary(library.indexOf(item))}>
+              <TouchableOpacity
+                style={[styles.row, flash && styles.rowFlash]}
+                onPress={() => playFromLibrary(library.indexOf(item))}
+              >
                 <Artwork title={item.title} hue={item.hue} size={48} radius={6} />
                 <View style={styles.meta}>
                   <Text style={[styles.name, active && styles.nameActive]} numberOfLines={1}>
@@ -145,9 +160,14 @@ export default function LibraryScreen({ navigation }) {
         />
       )}
 
+      {/* QQ 音乐式悬浮定位按钮：滚到正在播放的歌 */}
+      {sorted.length > 0 && currentId && queue.length > 0 && sorted.some((t) => t.id === currentId) && (
+        <TouchableOpacity style={styles.locateBtn} onPress={onLocate} activeOpacity={0.8}>
+          <FontAwesome name="crosshairs" size={20} color="#ff3a3a" />
+        </TouchableOpacity>
+      )}
+
       <SortMenu visible={menu} onClose={() => setMenu(false)} sortMode={sortMode} onChange={setSortMode} />
-      {/* 当前播放队列（半屏），含「定位当前歌」功能 */}
-      <PlaylistSheet visible={queueSheet} onClose={() => setQueueSheet(false)} />
     </View>
   );
 }
@@ -199,6 +219,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
+    height: ROW_H,
+  },
+  rowFlash: { backgroundColor: '#ffecec' },
+  locateBtn: {
+    position: 'absolute',
+    right: 18,
+    bottom: 92,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ececec',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
   },
   meta: { marginLeft: 12, flex: 1 },
   name: { color: '#1a1a1a', fontSize: 15 },
