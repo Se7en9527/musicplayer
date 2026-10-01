@@ -52,17 +52,6 @@ export default function WifiScreen({ navigation }) {
       <View style={styles.body}>
         <FontAwesome name="wifi" size={40} color="#ff3a3a" />
         <Text style={styles.title}>WiFi 上传</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      {Header}
-      <View style={styles.body}>
-        <FontAwesome name="wifi" size={40} color="#e60026" />
-        <Text style={styles.title}>WiFi 上传</Text>
         {address ? (
           <>
             <Text style={styles.sub}>电脑连同一 WiFi，浏览器打开：</Text>
