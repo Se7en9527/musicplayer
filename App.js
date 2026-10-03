@@ -16,13 +16,12 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { FontAwesome } from '@expo/vector-icons';
 import TrackPlayer from 'react-native-track-player';
 
-// 注册后台播放服务（锁屏/控制中心/线控）。
-// 真正的远程控制逻辑注册在 usePlayerStore.init() 里（见 RemotePlay/RemotePause/
-// RemoteNext/RemotePrevious/RemoteSeek）——RNTP v4 在 iOS 上远程事件走同一个
-// NativeEventEmitter(TrackPlayer)，主 App 的 addEventListener 也能收到，比依赖
-// require() 懒加载的独立 service 模块可靠（生产包里那条路径解析不到 → 锁屏一直失效）。
-// 这里只保留一个空 service 以满足 RNTP 注册约定（并兼容 Android 后续扩展），不重复注册。
-TrackPlayer.registerPlaybackService(() => async () => {});
+// 注册后台播放服务（锁屏/控制中心/线控）。走 RNTP v4 官方推荐的标准 service 路径：
+// require('./src/services/trackPlayerService') 返回 module.exports 的 async 函数，
+// registerPlaybackService 在 iOS 上等价于 setImmediate(该函数在同一 JS 线程运行)。
+// 远程控制逻辑在 remoteControls.js 的 registerRemoteHandlers() 里（含去重守卫，
+// 与 usePlayerStore.init() 里的保底调用只会注册一次，不会 “下一首跳两首”）。
+TrackPlayer.registerPlaybackService(() => require('./src/services/trackPlayerService'));
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
