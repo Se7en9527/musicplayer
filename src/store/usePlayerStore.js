@@ -98,6 +98,8 @@ export const usePlayerStore = create((set, get) => ({
   categories: ['默认'],
   ready: false,
   loading: false,
+  // 锁屏远程控制调试信息（在「我的」页底部显示，用于定位“按了没反应”卡在哪一层）
+  remoteDebug: { handlers: false, lastEvent: '', lastErr: '' },
 
   init: async () => {
     try {
@@ -105,28 +107,36 @@ export const usePlayerStore = create((set, get) => ({
     } catch (e) {
       // already setup
     }
-    await TrackPlayer.updateOptions({
-      // iOS 音频会话：必须显式声明 playback 类别，否则锁屏/控制中心的远程控制不可靠
-      iosCategory: 'playback',
-      iosCategoryMode: 'default',
-      capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.Seek,
-      ],
-      compactCapabilities: [Capability.Play, Capability.Pause],
-      notificationCapabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.Seek,
-      ],
-      // v4 必须显式配置，否则不会周期性发进度事件（进度条不动 / 锁屏无进度）
-      progressUpdateEventInterval: 1,
-    });
+    // ★ 远程监听先注册（带模块级去重守卫）：即便下面 updateOptions 万一抛错，
+    // 监听也已挂上，不会被中断，避免“进度能用、锁屏全死”的坑。
+    registerRemoteHandlers();
+    try {
+      await TrackPlayer.updateOptions({
+        // iOS 音频会话：必须显式声明 playback 类别，否则锁屏/控制中心的远程控制不可靠
+        iosCategory: 'playback',
+        iosCategoryMode: 'default',
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.Seek,
+        ],
+        compactCapabilities: [Capability.Play, Capability.Pause],
+        notificationCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.Seek,
+        ],
+        // v4 必须显式配置，否则不会周期性发进度事件（进度条不动 / 锁屏无进度）
+        progressUpdateEventInterval: 1,
+      });
+    } catch (e) {
+      // updateOptions 失败不能中断 init；记录错误便于调试
+      get()._setRemoteDebug({ lastErr: 'updateOptions:' + String((e && e.message) || e) });
+    }
 
     TrackPlayer.addEventListener(Event.PlaybackState, ({ state }) => {
       set({ isPlaying: state === State.Playing });
@@ -156,15 +166,10 @@ export const usePlayerStore = create((set, get) => ({
         // 若沿用上一首更长的 duration，拖拽 seek 会算出超出本歌时长的位置，可能原生越界崩溃
         set({ currentIndex: idx, currentId: queue[idx].id, position: 0, duration: 0 });
         get()._persist();
+        // 切歌后同步刷新锁屏“正在播放”信息（歌名/歌手/时长）——不设置时 iOS 锁屏/控制中心命令路由异常
+        get()._updateNowPlaying();
       }
     });
-
-    // ===== 锁屏 / 控制中心 / 耳机线控 / 蓝牙车机 的远程控制 =====
-    // 集中注册在 remoteControls.js 的 registerRemoteHandlers()（含模块级去重守卫，
-    // 与 App.js 的 registerPlaybackService 标准路径只会注册一次，不会 “下一首跳两首”）。
-    // 事件名已对照 RNTP v4.1.1 源码确认：iOS 锁屏播放/暂停按钮原生发 RemotePlay/RemotePause，
-    // 没有独立的 RemoteTogglePlayPause 事件。
-    registerRemoteHandlers();
 
     set({ ready: true });
     await get().loadLibrary();
@@ -172,6 +177,25 @@ export const usePlayerStore = create((set, get) => ({
     await get()._restoreSession();
     await get().loadPlaylists();
   },
+
+  // 同步锁屏/控制中心“正在播放”信息（歌名/歌手/时长）。RNTP 锁屏控制依赖 nowPlayingInfo，
+  // 不设置时控制中心/锁屏按钮可能点了没反应。
+  _updateNowPlaying: async () => {
+    try {
+      const t = get().currentTrack();
+      if (!t) return;
+      await TrackPlayer.updateNowPlayingMetadata({
+        title: t.title || '未知歌曲',
+        artist: t.artist || '未知歌手',
+        album: t.album || '',
+        duration: (t.duration || get().duration || 0) || undefined,
+      });
+    } catch (e) {
+      get()._setRemoteDebug({ lastErr: 'nowPlaying:' + String((e && e.message) || e) });
+    }
+  },
+
+  _setRemoteDebug: (patch) => set((s) => ({ remoteDebug: { ...s.remoteDebug, ...patch } })),
 
   // ===== 会话持久化：迷你播放条在重启后仍然可见 =====
   _persist: () => {
@@ -506,6 +530,7 @@ export const usePlayerStore = create((set, get) => ({
     await TrackPlayer.skip(startIndex);
     await TrackPlayer.play();
     set({ isPlaying: true });
+    get()._updateNowPlaying();
     get()._persist();
   },
 
