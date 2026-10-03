@@ -8,6 +8,7 @@ export default function MyScreen() {
   const insets = useSafeAreaInsets();
   const library = usePlayerStore((s) => s.library);
   const importFromMediaLibrary = usePlayerStore((s) => s.importFromMediaLibrary);
+  const remoteDebug = usePlayerStore((s) => s.remoteDebug);
 
   const onImportLib = async () => {
     try {
@@ -44,6 +45,14 @@ export default function MyScreen() {
         <Text style={styles.tip}>2. 或在「音乐库」页面点「WiFi 上传」，手机电脑同一 WiFi，浏览器打开提示的地址拖歌进去</Text>
         <Text style={styles.tip}>3. 或点「从手机音乐库导入」直接读取本机已授权的歌曲</Text>
       </View>
+
+      <View style={styles.debugCard}>
+        <Text style={styles.tipsTitle}>锁屏控制调试信息</Text>
+        <Text style={styles.tip}>远程监听已注册：{remoteDebug.handlers ? '是 ✅' : '否 ❌'}</Text>
+        <Text style={styles.tip}>最近收到的锁屏事件：{remoteDebug.lastEvent || '（暂无）'}</Text>
+        <Text style={styles.tip}>错误：{remoteDebug.lastErr || '（无）'}</Text>
+        <Text style={styles.tip}>测试步骤：播放一首歌 → 锁屏/上滑出控制中心 → 点 ⏸/▶/⏮/⏭/拖动进度 → 回到本页看“最近收到的锁屏事件”是否更新。</Text>
+      </View>
     </View>
   );
 }
@@ -71,4 +80,12 @@ const styles = StyleSheet.create({
   tips: { marginTop: 8, padding: 4 },
   tipsTitle: { color: '#1a1a1a', fontSize: 14, fontWeight: '700', marginBottom: 10 },
   tip: { color: '#999', fontSize: 13, lineHeight: 22, marginBottom: 10 },
+  debugCard: {
+    marginTop: 16,
+    backgroundColor: '#fff7e6',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#ffe0a3',
+  },
 });
