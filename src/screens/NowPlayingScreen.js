@@ -7,6 +7,10 @@ import PlaylistSheet from '../components/PlaylistSheet';
 import { FontAwesome } from '@expo/vector-icons';
 import { formatTime } from '../utils/format';
 
+// 黑胶唱片在拖动进度条时不应跟着重渲染（否则旋转动画卡顿）。
+// 拖动期间 title/hue/playing 都不变，用 memo 把它挡在重渲染之外。
+const MemoVinyl = React.memo(Vinyl);
+
 const REPEAT_ICON = { order: 'repeat', shuffle: 'random', one: 'repeat' };
 const MODE_ITEMS = [
   { key: 'shuffle', label: '随机播放' },
@@ -43,10 +47,15 @@ export default function NowPlayingScreen({ navigation }) {
     }, [])
   );
 
+  // 拖动节流：限制 live-seek 频率，避免每次 move 都 seek 造成音频抖动
+  const lastSeekRef = useRef(0);
+
   // 用触摸事件自带的 locationX（相对进度条坐标）换算比例：
   // 之前用 bar.measure() 异步回调，快速拖动/重渲染时会拿到失效视图导致 JS 异常——
   // 事件回调里的错误不经过 ErrorBoundary，release 包会直接闪退。
   // 这里全部包 try/catch，任何异常只放弃本次拖拽，绝不外抛。
+  // 拖动时按节流实时 seek，让音频跟着手指走（体验如 QQ 音乐丝滑拖拽），
+  // 而缩略条位置由本地 dragRatio 即时驱动，不依赖底层回调，所以视觉零延迟。
   const ratioFromEvent = (e) => {
     try {
       if (!duration) return;
@@ -55,6 +64,11 @@ export default function NowPlayingScreen({ navigation }) {
       if (!isFinite(x) || !w || w <= 0) return;
       const ratio = Math.min(1, Math.max(0, x / w));
       setDragRatio(ratio);
+      const now = Date.now();
+      if (now - lastSeekRef.current > 100) {
+        lastSeekRef.current = now;
+        seek(ratio * duration);
+      }
     } catch (err) {
       /* 拖拽中的任何异常都只放弃本次预览 */
     }
@@ -109,7 +123,7 @@ export default function NowPlayingScreen({ navigation }) {
       </View>
 
       <View style={styles.vinylWrap}>
-        <Vinyl title={track.title} hue={track.hue} playing={isPlaying} size={260} />
+        <MemoVinyl title={track.title} hue={track.hue} playing={isPlaying} size={260} />
       </View>
 
       <View style={styles.info}>
