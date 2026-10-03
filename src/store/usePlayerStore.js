@@ -19,6 +19,8 @@ const PLAYLISTS_FILE = 'playlists.json';
 let _lastQueueIds = null;
 // 进度自动存档节流
 let _lastAutoPersist = 0;
+// 锁屏远程控制只注册一次（init 里）
+let _remoteRegistered = false;
 
 function isAudio(name) {
   const lower = (name || '').toLowerCase();
@@ -157,6 +159,40 @@ export const usePlayerStore = create((set, get) => ({
         get()._persist();
       }
     });
+
+    // ===== 锁屏 / 控制中心 / 耳机线控 / 蓝牙车机 的远程控制 =====
+    // ★ 根因修复：之前锁屏"按了没反应"是因为远程处理放在独立的 PlaybackService 模块里，
+    // 而该模块用 require('./src/services/trackPlayerService') 懒加载——生产包里这个路径未正确解析，
+    // service 从未注册 → 所有 Remote* 事件石沉大海（系统按钮有视觉反馈，但音乐不动）。
+    // RNTP v4 在 iOS 上远程事件走同一个 NativeEventEmitter(TrackPlayer)，
+    // 主 App 的 TrackPlayer.addEventListener 也能收到（无需依赖 service 独立上下文），
+    // 所以这里直接在 init（主 App 上下文）注册，必然生效。
+    // 注意：① RNTP v4.1.1 没有 RemoteTogglePlayPause 事件，iOS 锁屏播放/暂停按钮
+    //      发的是 RemotePlay/RemotePause（原生按当前状态二选一发射），处理这两个即可；
+    //      ② 上一首/下一首走 store.next()/prev()，自带到头循环与">3秒回到开头"逻辑，
+    //      比原生 skipToNext（到末尾抛异常被吞）可靠。
+    if (!_remoteRegistered) {
+      _remoteRegistered = true;
+      TrackPlayer.addEventListener(Event.RemotePlay, () => {
+        TrackPlayer.play().catch(() => {});
+      });
+      TrackPlayer.addEventListener(Event.RemotePause, () => {
+        TrackPlayer.pause().catch(() => {});
+      });
+      TrackPlayer.addEventListener(Event.RemoteStop, () => {
+        TrackPlayer.stop().catch(() => {});
+      });
+      TrackPlayer.addEventListener(Event.RemoteNext, () => {
+        get().next();
+      });
+      TrackPlayer.addEventListener(Event.RemotePrevious, () => {
+        get().prev();
+      });
+      TrackPlayer.addEventListener(Event.RemoteSeek, (e) => {
+        const p = e && typeof e.position === 'number' ? e.position : NaN;
+        if (isFinite(p) && p >= 0) get().seek(p);
+      });
+    }
 
     set({ ready: true });
     await get().loadLibrary();
