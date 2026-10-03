@@ -17,10 +17,12 @@ import { FontAwesome } from '@expo/vector-icons';
 import TrackPlayer from 'react-native-track-player';
 
 // 注册后台播放服务（锁屏/控制中心/线控）。
-// 必须用 require 懒加载 service 模块（RNTP v4 官方要求）：锁屏后 App 进入后台，
-// service 会在独立 JS 线程被重新加载；若用 import 预加载函数，后台线程取不到该模块，
-// Remote* 事件监听器不生效 → 表现为"锁屏按钮有反应但音乐不停/不切歌"。
-TrackPlayer.registerPlaybackService(() => require('./src/services/trackPlayerService'));
+// 真正的远程控制逻辑注册在 usePlayerStore.init() 里（见 RemotePlay/RemotePause/
+// RemoteNext/RemotePrevious/RemoteSeek）——RNTP v4 在 iOS 上远程事件走同一个
+// NativeEventEmitter(TrackPlayer)，主 App 的 addEventListener 也能收到，比依赖
+// require() 懒加载的独立 service 模块可靠（生产包里那条路径解析不到 → 锁屏一直失效）。
+// 这里只保留一个空 service 以满足 RNTP 注册约定（并兼容 Android 后续扩展），不重复注册。
+TrackPlayer.registerPlaybackService(() => async () => {});
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
