@@ -30,26 +30,38 @@ export function registerRemoteHandlers() {
   } catch (e) {
     /* noop */
   }
+  // 标记：远程监听已注册（屏内调试 HUD 会读取）
+  try { usePlayerStore.getState()._setRemoteDebug({ handlers: true }); } catch (e) {}
+
+  const mark = (name) => {
+    try { usePlayerStore.getState()._setRemoteDebug({ lastEvent: name }); } catch (e) {}
+  };
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
+    mark('RemotePlay');
     // 锁屏/控制中心点 “播放”
     TrackPlayer.play().catch(() => {});
   });
   TrackPlayer.addEventListener(Event.RemotePause, () => {
+    mark('RemotePause');
     // 锁屏/控制中心点 “暂停”
     TrackPlayer.pause().catch(() => {});
   });
   TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    mark('RemoteStop');
     TrackPlayer.stop().catch(() => {});
   });
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
+    mark('RemoteNext');
     // 下一首：走 store.next()，自带到头循环与 “>3 秒回到开头” 逻辑
     usePlayerStore.getState().next();
   });
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
+    mark('RemotePrevious');
     usePlayerStore.getState().prev();
   });
   TrackPlayer.addEventListener(Event.RemoteSeek, (e) => {
+    mark('RemoteSeek');
     // 锁屏拖动进度条快进
     const p = e && typeof e.position === 'number' ? e.position : NaN;
     if (isFinite(p) && p >= 0) usePlayerStore.getState().seek(p);
