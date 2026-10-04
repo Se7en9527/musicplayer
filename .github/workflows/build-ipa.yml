@@ -20,6 +20,9 @@ jobs:
       - name: Install JS dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Patch RNTP native remote handlers (native fallback)
+        run: python3 patch_rntp.py
+
       - name: Generate native iOS project (prebuild)
         run: npx expo prebuild -p ios --no-install
 
@@ -27,6 +30,8 @@ jobs:
         run: |
           cd ios
           pod install
+          cd ..
+          python3 patch_rntp.py
 
       - name: Detect Xcode scheme
         id: scheme
