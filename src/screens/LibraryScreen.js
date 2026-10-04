@@ -106,6 +106,7 @@ export default function LibraryScreen({ navigation }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [confirm, setConfirm] = useState({ visible: false, tracks: [], delSource: false });
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
   const listRef = useRef(null);
 
   const sorted = [...library].sort((a, b) =>
@@ -149,10 +150,12 @@ export default function LibraryScreen({ navigation }) {
   const exitSelect = () => {
     setSelecting(false);
     setSelectedIds([]);
+    setActionOpen(false);
   };
 
   const onAddToPlaylist = (pl) => {
     setPickerVisible(false);
+    setActionOpen(false);
     addTracksToPlaylist(pl.id, selectedIds);
     Alert.alert('已添加', `已把 ${selectedIds.length} 首加入「${pl.name}」`);
     setSelectedIds([]);
@@ -231,6 +234,11 @@ export default function LibraryScreen({ navigation }) {
               <TouchableOpacity style={styles.sortBtn} onPress={toggleSelectAll}>
                 <Text style={styles.sortTxt}>{allSelected ? '取消全选' : '全选'}</Text>
               </TouchableOpacity>
+              {selectedIds.length > 0 && (
+                <TouchableOpacity style={styles.sortBtn} onPress={() => setActionOpen(true)}>
+                  <Text style={styles.sortTxt}>操作({selectedIds.length})</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.refreshBtn} onPress={exitSelect}>
                 <FontAwesome name="close" size={16} color="#333" />
               </TouchableOpacity>
@@ -333,22 +341,34 @@ export default function LibraryScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* 多选操作栏：屏幕中部悬浮（避免被底部 MiniPlayer 挡住） */}
-      {selecting && selectedIds.length > 0 && (
-        <View style={styles.actionBar} pointerEvents="box-none">
-          <TouchableOpacity style={[styles.actionBtn, styles.actionBtnShadow]} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
-            <FontAwesome name="plus" size={16} color="#fff" />
-            <Text style={styles.actionTxt}>添加到歌单</Text>
+      {/* 多选操作：居中对话框（Modal 遮罩，盖在 MiniPlayer 之上，不被遮挡） */}
+      {selecting && selectedIds.length > 0 && actionOpen && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setActionOpen(false)}>
+          <TouchableOpacity style={styles.dialogMask} activeOpacity={1} onPress={() => setActionOpen(false)}>
+            <TouchableOpacity style={styles.dialogCard} activeOpacity={1} onPress={() => {}}>
+              <Text style={styles.dialogTitle}>已选 {selectedIds.length} 首</Text>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogBtnPrimary]}
+                onPress={() => { setActionOpen(false); setPickerVisible(true); }}
+                activeOpacity={0.85}
+              >
+                <FontAwesome name="plus" size={16} color="#fff" />
+                <Text style={styles.dialogBtnTxt}>添加到歌单</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dialogBtn, styles.dialogBtnDel]}
+                onPress={() => { setActionOpen(false); requestDeleteTracks(selectedIds.map((id) => library.find((t) => t.id === id)).filter(Boolean)); }}
+                activeOpacity={0.85}
+              >
+                <FontAwesome name="trash" size={16} color="#fff" />
+                <Text style={styles.dialogBtnTxt}>删除</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.dialogCancel} onPress={() => setActionOpen(false)} activeOpacity={0.85}>
+                <Text style={styles.dialogCancelTxt}>取消</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnDel, styles.actionBtnShadow]}
-            onPress={() => requestDeleteTracks(selectedIds.map((id) => library.find((t) => t.id === id)).filter(Boolean))}
-            activeOpacity={0.8}
-          >
-            <FontAwesome name="trash" size={16} color="#fff" />
-            <Text style={styles.actionTxt}>删除</Text>
-          </TouchableOpacity>
-        </View>
+        </Modal>
       )}
 
       <SortMenu visible={menu} onClose={() => setMenu(false)} sortMode={sortMode} onChange={setSortMode} />
@@ -558,36 +578,47 @@ const styles = StyleSheet.create({
   footer: { color: '#b0b0b6', fontSize: 12, textAlign: 'center', paddingVertical: 14 },
   emptyTitle: { color: '#1a1a1a', fontSize: 18, fontWeight: '700', marginTop: 16 },
   emptySub: { color: '#9a9a9a', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 20 },
-  // 多选操作栏：屏幕中部悬浮胶囊（避开底部 MiniPlayer / TabBar）
-  actionBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '45%',
-    flexDirection: 'row',
+  // 多选操作：居中对话框（Modal 遮罩，盖在 MiniPlayer 之上）
+  dialogMask: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    zIndex: 50,
+    alignItems: 'center',
+    paddingHorizontal: 32,
   },
-  actionBtn: {
+  dialogCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    alignItems: 'stretch',
+  },
+  dialogTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  dialogBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(26,26,26,0.92)',
-    borderRadius: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    marginHorizontal: 6,
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginBottom: 10,
   },
-  actionBtnShadow: {
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+  dialogBtnPrimary: { backgroundColor: '#1a1a1a' },
+  dialogBtnDel: { backgroundColor: '#ff3a3a' },
+  dialogBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  dialogCancel: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginTop: 2,
   },
-  actionBtnDel: { backgroundColor: 'rgba(255,58,58,0.95)' },
-  actionTxt: { color: '#fff', fontSize: 15, fontWeight: '600', marginLeft: 6 },
+  dialogCancelTxt: { color: '#999', fontSize: 15 },
   // 删除确认弹框
   modalMask: {
     position: 'absolute',
