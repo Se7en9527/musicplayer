@@ -117,16 +117,14 @@ ALREADY_MARKERS = [
 
 def find_targets():
     targets = []
-    # node_modules 源（pod install 读取）
-    for root, _, files in os.walk('node_modules'):
-        if os.path.basename(root) == 'RNTrackPlayer' and 'RNTrackPlayer.swift' in files:
-            targets.append(os.path.join(root, 'RNTrackPlayer.swift'))
-    # 已生成的 Pods 副本（若已 prebuild 过）
-    for root, _, files in os.walk('ios'):
-        if os.path.basename(root) == 'RNTrackPlayer' and 'RNTrackPlayer.swift' in files:
-            p = os.path.join(root, 'RNTrackPlayer.swift')
-            if p not in targets:
-                targets.append(p)
+    # 不限制父目录名：Expo 把 RNTP 的 Pods 副本放在 ReactNativeTrackPlayer 等目录名下，
+    # 必须靠文件名递归匹配，否则会漏掉真正被编译的那份（导致补丁白打）。
+    for base in ('node_modules', 'ios'):
+        for root, _, files in os.walk(base):
+            if 'RNTrackPlayer.swift' in files:
+                p = os.path.join(root, 'RNTrackPlayer.swift')
+                if p not in targets:
+                    targets.append(p)
     return targets
 
 
