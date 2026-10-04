@@ -102,6 +102,14 @@ REPLACEMENTS = [
         '            return MPRemoteCommandHandlerStatus.success\n'
         '        }',
     ),
+    # 注入唯一字符串标记，便于在编译后的 IPA 二进制里确认补丁确实进了包
+    (
+        '    public func setupPlayer(config: [String: Any], resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {\n'
+        '        if hasInitialized {\n',
+        '    public func setupPlayer(config: [String: Any], resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {\n'
+        '        print("__LSCTL_NATIVE_PATCH__")\n'
+        '        if hasInitialized {\n',
+    ),
 ]
 
 # 用于“已打过补丁”判定的标记
@@ -112,6 +120,7 @@ ALREADY_MARKERS = [
     'self?.player.previous()',
     'self?.player.togglePlaying()',
     'self?.player.seek(to: event.positionTime)',
+    '__LSCTL_NATIVE_PATCH__',
 ]
 
 
