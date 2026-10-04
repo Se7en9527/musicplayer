@@ -1,5 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Alert,
+  Animated,
+} from 'react-native';
+import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayerStore } from '../store/usePlayerStore';
 import Artwork from '../components/Artwork';
@@ -8,6 +17,56 @@ import { FontAwesome } from '@expo/vector-icons';
 
 // 歌曲行固定高度（Artwork 48 + 上下 padding 10*2），供 getItemLayout 精确定位
 const ROW_H = 68;
+
+// 单首歌行：外包 Swipeable 实现左滑露出红色“删除”按钮
+function SongRow({ item, active, flash, onPress, onDelete }) {
+  const swipeRef = useRef(null);
+
+  const renderRight = (progress, dragX) => {
+    const trans = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [0, 80],
+      extrapolate: 'clamp',
+    });
+    return (
+      <TouchableOpacity
+        style={styles.delAction}
+        activeOpacity={0.85}
+        onPress={() => {
+          swipeRef.current?.close();
+          onDelete(item);
+        }}
+      >
+        <Animated.Text style={[styles.delActionTxt, { transform: [{ translateX: trans }] }]}>
+          删除
+        </Animated.Text>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderRight}
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <TouchableOpacity style={[styles.row, flash && styles.rowFlash]} onPress={onPress} activeOpacity={0.7}>
+        <Artwork title={item.title} hue={item.hue} size={48} radius={6} />
+        <View style={styles.meta}>
+          <Text style={[styles.name, active && styles.nameActive]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={styles.sub} numberOfLines={1}>
+            {item.artist} · {item.album}
+          </Text>
+        </View>
+        {active && <FontAwesome name="volume-up" size={16} color="#ff3a3a" />}
+      </TouchableOpacity>
+    </Swipeable>
+  );
+}
 
 export default function LibraryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -21,7 +80,22 @@ export default function LibraryScreen({ navigation }) {
   const queue = usePlayerStore((s) => s.queue);
   const [menu, setMenu] = useState(false);
   const [locateFlash, setLocateFlash] = useState(false);
+  const [confirm, setConfirm] = useState({ visible: false, track: null, delSource: false });
   const listRef = useRef(null);
+
+  // 删除确认弹框：勾选 delSource 则同时删除 App 内音乐源文件
+  const requestDelete = (track) => setConfirm({ visible: true, track, delSource: false });
+  const closeConfirm = () => setConfirm((c) => ({ ...c, visible: false }));
+  const doDelete = async () => {
+    const { track, delSource } = confirm;
+    setConfirm({ visible: false, track: null, delSource: false });
+    if (!track) return;
+    try {
+      await usePlayerStore.getState().removeFromLibrary(track, delSource);
+    } catch (e) {
+      Alert.alert('删除失败', String((e && e.message) || e));
+    }
+  };
 
   // QQ 音乐式悬浮定位：滚到正在播的歌并短暂高亮
   const onLocate = () => {
@@ -87,7 +161,7 @@ export default function LibraryScreen({ navigation }) {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <GestureHandlerRootView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.hTitle}>音乐库</Text>
         <View style={styles.headerRight}>
@@ -136,25 +210,17 @@ export default function LibraryScreen({ navigation }) {
               <Text style={styles.footer}>音乐库共 {library.length} 首</Text>
             ) : null
           }
-          renderItem={({ item, index }) => {
+          renderItem={({ item }) => {
             const active = item.id === currentId;
             const flash = active && locateFlash;
             return (
-              <TouchableOpacity
-                style={[styles.row, flash && styles.rowFlash]}
+              <SongRow
+                item={item}
+                active={active}
+                flash={flash}
                 onPress={() => playFromLibrary(library.indexOf(item))}
-              >
-                <Artwork title={item.title} hue={item.hue} size={48} radius={6} />
-                <View style={styles.meta}>
-                  <Text style={[styles.name, active && styles.nameActive]} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.sub} numberOfLines={1}>
-                    {item.artist} · {item.album}
-                  </Text>
-                </View>
-                {active && <FontAwesome name="volume-up" size={16} color="#ff3a3a" />}
-              </TouchableOpacity>
+                onDelete={requestDelete}
+              />
             );
           }}
         />
@@ -168,7 +234,37 @@ export default function LibraryScreen({ navigation }) {
       )}
 
       <SortMenu visible={menu} onClose={() => setMenu(false)} sortMode={sortMode} onChange={setSortMode} />
-    </View>
+
+      {/* 删除确认弹框：左侧删除 / 右侧取消，含“同时删除 App 内音乐源文件”勾选框 */}
+      {confirm.visible && (
+        <View style={styles.modalMask}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>删除歌曲</Text>
+            <Text style={styles.modalMsg} numberOfLines={1}>
+              {confirm.track?.title}
+            </Text>
+            <TouchableOpacity
+              style={styles.checkRow}
+              onPress={() => setConfirm((c) => ({ ...c, delSource: !c.delSource }))}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkBox, confirm.delSource && styles.checkBoxOn]}>
+                {confirm.delSource && <FontAwesome name="check" size={14} color="#fff" />}
+              </View>
+              <Text style={styles.checkTxt}>同时删除 App 内音乐源文件</Text>
+            </TouchableOpacity>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnDel]} onPress={doDelete} activeOpacity={0.8}>
+                <Text style={styles.modalBtnDelTxt}>删除</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={closeConfirm} activeOpacity={0.8}>
+                <Text style={styles.modalBtnCancelTxt}>取消</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+    </GestureHandlerRootView>
   );
 }
 
@@ -222,6 +318,14 @@ const styles = StyleSheet.create({
     height: ROW_H,
   },
   rowFlash: { backgroundColor: '#ffecec' },
+  // 左滑露出的红色删除按钮
+  delAction: {
+    width: 80,
+    backgroundColor: '#ff3a3a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  delActionTxt: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
   locateBtn: {
     position: 'absolute',
     right: 18,
@@ -253,4 +357,44 @@ const styles = StyleSheet.create({
   footer: { color: '#b0b0b6', fontSize: 12, textAlign: 'center', paddingVertical: 14 },
   emptyTitle: { color: '#1a1a1a', fontSize: 18, fontWeight: '700', marginTop: 16 },
   emptySub: { color: '#9a9a9a', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 20 },
+  // 删除确认弹框
+  modalMask: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  modalBox: {
+    width: '82%',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'stretch',
+  },
+  modalTitle: { color: '#1a1a1a', fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  modalMsg: { color: '#666', fontSize: 14, textAlign: 'center', marginTop: 10, marginBottom: 16 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  checkBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#bbbbbb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  checkBoxOn: { backgroundColor: '#ff3a3a', borderColor: '#ff3a3a' },
+  checkTxt: { color: '#1a1a1a', fontSize: 14 },
+  modalBtns: { flexDirection: 'row', marginTop: 18 },
+  modalBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  modalBtnDel: { backgroundColor: '#ff3a3a', marginRight: 10 },
+  modalBtnDelTxt: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+  modalBtnCancel: { backgroundColor: '#f0f0f2' },
+  modalBtnCancelTxt: { color: '#1a1a1a', fontSize: 16 },
 });
