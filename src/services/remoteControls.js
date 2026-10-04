@@ -53,12 +53,14 @@ export function registerRemoteHandlers() {
   });
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
     mark('RemoteNext');
-    // 下一首：走 store.next()，自带到头循环与 “>3 秒回到开头” 逻辑
-    usePlayerStore.getState().next();
+    // ★ 不主动跳歌：原生兜底 handler（patch_rntp.py 已注入）已直接调 player.next() 切歌。
+    // 这里只把 UI 对齐到播放器真实的当前曲目，避免“原生跳一次 + JS 再跳一次 = 跳两首”。
+    usePlayerStore.getState()._syncToPlayer();
   });
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
     mark('RemotePrevious');
-    usePlayerStore.getState().prev();
+    // 同上：原生 handler 已 player.previous()，这里仅做 UI 同步。
+    usePlayerStore.getState()._syncToPlayer();
   });
   TrackPlayer.addEventListener(Event.RemoteSeek, (e) => {
     mark('RemoteSeek');
