@@ -150,6 +150,9 @@ export const usePlayerStore = create((set, get) => ({
         _lastAutoPersist = now;
         get()._persist();
       }
+      // 顺带同步曲目索引：锁屏下一首/上一首由原生兜底 handler 直接切歌时，
+      // JS 收不到 RemoteNext/RemotePrevious 事件，靠此保持 UI 与实际播放一致。
+      get()._syncToPlayer();
     });
     // v4 的 track 参数兼容处理：可能是索引(number)也可能是 id(string)
     TrackPlayer.addEventListener(Event.PlaybackTrackChanged, ({ track }) => {
@@ -192,6 +195,23 @@ export const usePlayerStore = create((set, get) => ({
       });
     } catch (e) {
       get()._setRemoteDebug({ lastErr: 'nowPlaying:' + String((e && e.message) || e) });
+    }
+  },
+
+  // 当原生层直接切歌（如锁屏原生兜底 handler 调 player.next()/previous()）而 JS 收不到
+  // RemoteNext/RemotePrevious 事件时，进度监听器仍会触发本方法：从播放器读取真实当前曲目
+  // 索引并同步 UI，避免 App 显示与实际播放脱节（不会双跳，只是对齐状态）。
+  _syncToPlayer: async () => {
+    try {
+      const idx = await TrackPlayer.getActiveTrackIndex();
+      const { queue, currentIndex } = get();
+      if (typeof idx === 'number' && idx >= 0 && idx < queue.length && idx !== currentIndex) {
+        set({ currentIndex: idx, currentId: queue[idx]?.id, position: 0, duration: 0 });
+        get()._updateNowPlaying();
+        get()._persist();
+      }
+    } catch (e) {
+      /* noop */
     }
   },
 
