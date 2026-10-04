@@ -543,6 +543,66 @@ export const usePlayerStore = create((set, get) => ({
     await get()._playQueueAt(queue, idx < 0 ? 0 : idx);
   },
 
+  // 从音乐库删除一首歌；deleteSource=true 时同时删除 App 内 Documents 副本源文件
+  // （source==='lib' 来自系统媒体库，URI 不可由本 App 删除，仅从列表移除）。
+  removeFromLibrary: async (track, deleteSource) => {
+    const { library, queue, currentId, currentIndex, isPlaying } = get();
+    const delId = track.id;
+
+    // 1) 删除底层源文件（仅 doc 副本在本 App 沙盒内，可删）
+    if (deleteSource && track.source === 'doc' && track.uri) {
+      try {
+        await FileSystem.deleteAsync(track.uri, { idempotent: true });
+      } catch (e) {
+        /* 删文件失败不影响列表移除 */
+      }
+    }
+
+    // 2) 从音乐库移除
+    const newLib = library.filter((t) => t.id !== delId);
+    set({ library: newLib });
+
+    // 3) 计算删除后的新队列（保持原顺序，仅剔除被删项）
+    const newQueue = queue.filter((t) => t.id !== delId);
+
+    // 4) 处理“删的正是当前播放”
+    let newCurrentId = currentId;
+    let newCurrentIndex = currentIndex;
+    if (delId === currentId) {
+      if (newQueue.length > 0) {
+        // 优先落到原位置之后的那首（与列表删除体验一致），越界取末尾
+        const ni = Math.min(currentIndex, newQueue.length - 1);
+        newCurrentId = newQueue[ni]?.id ?? null;
+        newCurrentIndex = newCurrentId ? ni : -1;
+      } else {
+        newCurrentId = null;
+        newCurrentIndex = -1;
+      }
+    } else {
+      // 当前歌没删，下标可能因被删项前移而偏移，重新定位
+      newCurrentIndex = indexOfId(newQueue, currentId);
+    }
+
+    set({ queue: newQueue, currentId: newCurrentId, currentIndex: newCurrentIndex });
+
+    // 5) 同步底层播放器
+    const ids = newQueue.map((t) => t.id).join('|');
+    _lastQueueIds = ids;
+    try {
+      await TrackPlayer.setQueue(newQueue.map(toTPTrack));
+    } catch (e) {}
+    if (newCurrentId) {
+      const idx = indexOfId(newQueue, newCurrentId);
+      try { await TrackPlayer.skip(idx); } catch (e) {}
+      if (isPlaying) { try { await TrackPlayer.play(); } catch (e) {} }
+      get()._updateNowPlaying();
+    } else {
+      try { await TrackPlayer.stop(); } catch (e) {}
+      set({ isPlaying: false });
+    }
+    get()._persist();
+  },
+
   _playQueueAt: async (queue, startIndex) => {
     set({ queue, currentIndex: startIndex, currentId: queue[startIndex]?.id });
     _lastQueueIds = queue.map((t) => t.id).join('|');
