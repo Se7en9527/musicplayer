@@ -333,15 +333,15 @@ export default function LibraryScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* 多选底部操作栏 */}
+      {/* 多选操作栏：屏幕中部悬浮（避免被底部 MiniPlayer 挡住） */}
       {selecting && selectedIds.length > 0 && (
-        <View style={[styles.actionBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
+        <View style={styles.actionBar} pointerEvents="box-none">
+          <TouchableOpacity style={[styles.actionBtn, styles.actionBtnShadow]} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
             <FontAwesome name="plus" size={16} color="#fff" />
             <Text style={styles.actionTxt}>添加到歌单</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnDel]}
+            style={[styles.actionBtn, styles.actionBtnDel, styles.actionBtnShadow]}
             onPress={() => requestDeleteTracks(selectedIds.map((id) => library.find((t) => t.id === id)).filter(Boolean))}
             activeOpacity={0.8}
           >
@@ -558,30 +558,35 @@ const styles = StyleSheet.create({
   footer: { color: '#b0b0b6', fontSize: 12, textAlign: 'center', paddingVertical: 14 },
   emptyTitle: { color: '#1a1a1a', fontSize: 18, fontWeight: '700', marginTop: 16 },
   emptySub: { color: '#9a9a9a', fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 20 },
-  // 多选底部操作栏
+  // 多选操作栏：屏幕中部悬浮胶囊（避开底部 MiniPlayer / TabBar）
   actionBar: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    top: '45%',
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    backgroundColor: '#ffffff',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ececec',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    zIndex: 50,
   },
   actionBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 22,
-    paddingVertical: 11,
-    marginHorizontal: 5,
+    backgroundColor: 'rgba(26,26,26,0.92)',
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    marginHorizontal: 6,
   },
-  actionBtnDel: { backgroundColor: '#ff3a3a' },
+  actionBtnShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  actionBtnDel: { backgroundColor: 'rgba(255,58,58,0.95)' },
   actionTxt: { color: '#fff', fontSize: 15, fontWeight: '600', marginLeft: 6 },
   // 删除确认弹框
   modalMask: {
