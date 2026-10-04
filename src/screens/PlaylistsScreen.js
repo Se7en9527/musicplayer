@@ -275,14 +275,14 @@ export default function PlaylistsScreen() {
         />
         )}
 
-        {/* 多选底部操作栏 */}
+        {/* 多选操作栏：屏幕中部悬浮（避免被底部 MiniPlayer 挡住） */}
         {selMode && selIds.length > 0 && (
-          <View style={[styles.actionBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
+          <View style={styles.actionBar} pointerEvents="box-none">
+            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnShadow]} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
               <FontAwesome name="plus" size={16} color="#fff" />
               <Text style={styles.actionTxt}>添加到歌单</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDel]} onPress={onRemoveFromPlaylist} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDel, styles.actionBtnShadow]} onPress={onRemoveFromPlaylist} activeOpacity={0.8}>
               <FontAwesome name="trash" size={16} color="#fff" />
               <Text style={styles.actionTxt}>移出歌单</Text>
             </TouchableOpacity>
@@ -597,29 +597,34 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#eee',
   },
-  // 多选底部操作栏
+  // 多选操作栏：屏幕中部悬浮胶囊（避开底部 MiniPlayer / TabBar）
   actionBar: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    top: '45%',
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    backgroundColor: '#ffffff',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ececec',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    zIndex: 50,
   },
   actionBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 22,
-    paddingVertical: 11,
-    marginHorizontal: 5,
+    backgroundColor: 'rgba(26,26,26,0.92)',
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    marginHorizontal: 6,
   },
-  actionBtnDel: { backgroundColor: '#ff3a3a' },
+  actionBtnShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  actionBtnDel: { backgroundColor: 'rgba(255,58,58,0.95)' },
   actionTxt: { color: '#fff', fontSize: 15, fontWeight: '600', marginLeft: 6 },
 });
