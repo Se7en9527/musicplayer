@@ -30,10 +30,16 @@ export default function PlaylistsScreen() {
   const playFromPlaylist = usePlayerStore((s) => s.playFromPlaylist);
   const addToPlaylist = usePlayerStore((s) => s.addToPlaylist);
   const removeFromPlaylist = usePlayerStore((s) => s.removeFromPlaylist);
+  const addTracksToPlaylist = usePlayerStore((s) => s.addTracksToPlaylist);
+  const removeTracksFromPlaylist = usePlayerStore((s) => s.removeTracksFromPlaylist);
 
   const [cat, setCat] = useState('全部');
   const [selectedId, setSelectedId] = useState(null);
   const [addingSongs, setAddingSongs] = useState(false);
+  // 歌单详情多选
+  const [selMode, setSelMode] = useState(false);
+  const [selIds, setSelIds] = useState([]);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const listRef = useRef(null);
 
   const selected = playlists.find((p) => p.id === selectedId) || null;
@@ -117,33 +123,81 @@ export default function PlaylistsScreen() {
     ]);
   };
 
+  // ===== 歌单详情多选 =====
+  const toggleSel = (id) =>
+    setSelIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const allSel = plTracks.length > 0 && selIds.length === plTracks.length;
+  const toggleSelAll = () => setSelIds(allSel ? [] : plTracks.map((t) => t.id));
+  const exitSel = () => {
+    setSelMode(false);
+    setSelIds([]);
+  };
+
+  const onAddToPlaylist = (pl) => {
+    setPickerVisible(false);
+    if (pl.id === selected.id) {
+      Alert.alert('提示', '已在当前歌单中');
+      return;
+    }
+    addTracksToPlaylist(pl.id, selIds);
+    Alert.alert('已添加', `已把 ${selIds.length} 首加入「${pl.name}」`);
+    setSelIds([]);
+    setSelMode(false);
+  };
+
+  const onRemoveFromPlaylist = () => {
+    Alert.alert('移出歌单', `从「${selected.name}」移出选中的 ${selIds.length} 首？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '移出',
+        style: 'destructive',
+        onPress: () => {
+          removeTracksFromPlaylist(selected.id, selIds);
+          setSelMode(false);
+          setSelIds([]);
+        },
+      },
+    ]);
+  };
+
   // ===== 歌单详情页 =====
   if (selected) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.detailHeader}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => setSelectedId(null)}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { setSelectedId(null); exitSel(); }}>
             <FontAwesome name="chevron-left" size={20} color="#1a1a1a" />
           </TouchableOpacity>
           <View style={styles.detailMeta}>
             <Text style={styles.detailTitle} numberOfLines={1}>{selected.name}</Text>
             <Text style={styles.detailSub}>{selected.category} · {selected.trackIds.length} 首</Text>
           </View>
-          <TouchableOpacity style={styles.detailAction} onPress={() => setAddingSongs(true)}>
-            <FontAwesome name="plus" size={18} color="#1a1a1a" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.detailAction}
-            onPress={() => {
-              Alert.alert(selected.name, '操作', [
-                { text: '重命名', onPress: () => promptRename(selected) },
-                { text: '删除歌单', style: 'destructive', onPress: () => confirmDeletePlaylist(selected) },
-                { text: '取消', style: 'cancel' },
-              ]);
-            }}
-          >
-            <FontAwesome name="ellipsis-h" size={18} color="#1a1a1a" />
-          </TouchableOpacity>
+          {selMode ? (
+            <TouchableOpacity style={styles.detailAction} onPress={exitSel}>
+              <FontAwesome name="close" size={20} color="#1a1a1a" />
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity style={styles.detailAction} onPress={() => setAddingSongs(true)}>
+                <FontAwesome name="plus" size={18} color="#1a1a1a" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.detailAction} onPress={() => setSelMode(true)}>
+                <FontAwesome name="check-square-o" size={18} color="#1a1a1a" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.detailAction}
+                onPress={() => {
+                  Alert.alert(selected.name, '操作', [
+                    { text: '重命名', onPress: () => promptRename(selected) },
+                    { text: '删除歌单', style: 'destructive', onPress: () => confirmDeletePlaylist(selected) },
+                    { text: '取消', style: 'cancel' },
+                  ]);
+                }}
+              >
+                <FontAwesome name="ellipsis-h" size={18} color="#1a1a1a" />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <View style={styles.detailBtnRow}>
@@ -168,6 +222,11 @@ export default function PlaylistsScreen() {
             <FontAwesome name="crosshairs" size={14} color={activeIdxInPl < 0 ? '#bbb' : '#1a1a1a'} />
             <Text style={[styles.detailBtnTxt, activeIdxInPl < 0 && { color: '#bbb' }]}>定位当前歌</Text>
           </TouchableOpacity>
+          {selMode && (
+            <TouchableOpacity style={styles.detailBtn} onPress={toggleSelAll}>
+              <Text style={[styles.detailBtnTxt, { color: '#ff3a3a' }]}>{allSel ? '取消全选' : '全选'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {plTracks.length === 0 ? (
@@ -181,33 +240,53 @@ export default function PlaylistsScreen() {
           key="pl-detail-list"
           ref={listRef}
           data={plTracks}
-            keyExtractor={(item) => item.id}
-            getItemLayout={(d, index) => ({ length: ROW_H, offset: ROW_H * index, index })}
-            contentContainerStyle={{ paddingBottom: 90 }}
-            renderItem={({ item, index }) => {
-              const active = item.id === currentId;
-              return (
-                <TouchableOpacity
-                  style={[styles.row, active && styles.rowActive]}
-                  onPress={() => playFromPlaylist(selected, index)}
-                  onLongPress={() => {
-                    Alert.alert('移出歌单', `把「${item.title}」从歌单移出？`, [
-                      { text: '取消', style: 'cancel' },
-                      { text: '移出', style: 'destructive', onPress: () => removeFromPlaylist(selected.id, item.id) },
-                    ]);
-                  }}
-                >
-                  <Text style={[styles.idx, active && styles.idxActive]}>{index + 1}</Text>
-                  <Artwork title={item.title} hue={item.hue} size={42} radius={6} />
-                  <View style={styles.meta}>
-                    <Text style={[styles.name, active && styles.nameActive]} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.sub} numberOfLines={1}>{item.artist} · {item.album}</Text>
+          keyExtractor={(item) => item.id}
+          getItemLayout={(d, index) => ({ length: ROW_H, offset: ROW_H * index, index })}
+          contentContainerStyle={{ paddingBottom: selMode && selIds.length > 0 ? 90 : 20 }}
+          renderItem={({ item, index }) => {
+            const active = item.id === currentId;
+            const checked = selIds.includes(item.id);
+            return (
+              <TouchableOpacity
+                style={[styles.row, active && styles.rowActive, selMode && checked && styles.rowChecked]}
+                onPress={() => (selMode ? toggleSel(item.id) : playFromPlaylist(selected, index))}
+                onLongPress={selMode ? undefined : () => {
+                  Alert.alert('移出歌单', `把「${item.title}」从歌单移出？`, [
+                    { text: '取消', style: 'cancel' },
+                    { text: '移出', style: 'destructive', onPress: () => removeFromPlaylist(selected.id, item.id) },
+                  ]);
+                }}
+              >
+                {selMode && (
+                  <View style={[styles.checkCircle, checked && styles.checkCircleOn]}>
+                    {checked && <FontAwesome name="check" size={13} color="#fff" />}
                   </View>
-                  {active && <FontAwesome name="volume-up" size={15} color="#ff3a3a" />}
-                </TouchableOpacity>
-              );
-            }}
-          />
+                )}
+                {!selMode && <Text style={[styles.idx, active && styles.idxActive]}>{index + 1}</Text>}
+                <Artwork title={item.title} hue={item.hue} size={42} radius={6} />
+                <View style={styles.meta}>
+                  <Text style={[styles.name, active && styles.nameActive]} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.sub} numberOfLines={1}>{item.artist} · {item.album}</Text>
+                </View>
+                {!selMode && active && <FontAwesome name="volume-up" size={15} color="#ff3a3a" />}
+              </TouchableOpacity>
+            );
+          }}
+        />
+        )}
+
+        {/* 多选底部操作栏 */}
+        {selMode && selIds.length > 0 && (
+          <View style={[styles.actionBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 10 }]}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
+              <FontAwesome name="plus" size={16} color="#fff" />
+              <Text style={styles.actionTxt}>添加到歌单</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDel]} onPress={onRemoveFromPlaylist} activeOpacity={0.8}>
+              <FontAwesome name="trash" size={16} color="#fff" />
+              <Text style={styles.actionTxt}>移出歌单</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* 添加歌曲弹窗 */}
@@ -250,6 +329,43 @@ export default function PlaylistsScreen() {
                       </TouchableOpacity>
                     );
                   }}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* 添加到歌单：选择列表 */}
+        <Modal visible={pickerVisible} transparent animationType="slide" onRequestClose={() => setPickerVisible(false)}>
+          <View style={styles.addMask}>
+            <View style={styles.addSheet}>
+              <View style={styles.addHeader}>
+                <Text style={styles.addTitle}>添加到歌单</Text>
+                <TouchableOpacity onPress={() => setPickerVisible(false)}>
+                  <Text style={styles.addDone}>完成</Text>
+                </TouchableOpacity>
+              </View>
+              {playlists.length === 0 ? (
+                <View style={styles.empty}>
+                  <Text style={styles.emptySub}>还没有歌单，先去「歌单」页新建一个</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={playlists}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity style={styles.pickerRow} onPress={() => onAddToPlaylist(item)}>
+                      <View style={styles.pickerIcon}>
+                        <FontAwesome name="music" size={18} color="#ff3a3a" />
+                      </View>
+                      <View style={styles.meta}>
+                        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.sub} numberOfLines={1}>{item.trackIds.length} 首 · {item.category}</Text>
+                      </View>
+                      <FontAwesome name="chevron-right" size={14} color="#c9c9cf" />
+                    </TouchableOpacity>
+                  )}
                 />
               )}
             </View>
@@ -417,6 +533,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,58,58,0.08)',
     borderRadius: 8,
   },
+  rowChecked: {
+    backgroundColor: '#fff7f7',
+    borderRadius: 8,
+  },
+  // 多选勾选框
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#c4c4cc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  checkCircleOn: { backgroundColor: '#ff3a3a', borderColor: '#ff3a3a' },
   idx: { width: 26, color: '#999', fontSize: 13, textAlign: 'center' },
   idxActive: { color: '#ff3a3a' },
   meta: { marginLeft: 10, flex: 1 },
@@ -447,4 +579,47 @@ const styles = StyleSheet.create({
   },
   addTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '700' },
   addDone: { color: '#ff3a3a', fontSize: 15, fontWeight: '600' },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f2f2f5',
+  },
+  pickerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#eee',
+  },
+  // 多选底部操作栏
+  actionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    backgroundColor: '#ffffff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#ececec',
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 22,
+    paddingVertical: 11,
+    marginHorizontal: 5,
+  },
+  actionBtnDel: { backgroundColor: '#ff3a3a' },
+  actionTxt: { color: '#fff', fontSize: 15, fontWeight: '600', marginLeft: 6 },
 });
