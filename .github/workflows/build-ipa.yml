@@ -40,6 +40,22 @@ jobs:
           echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
           echo "Using scheme: $SCHEME"
 
+      - name: Verify RNTP native patch landed in Pods (compiled source)
+        run: |
+          set -e
+          F=$(find ios/Pods -name RNTrackPlayer.swift 2>/dev/null | head -1)
+          if [ -z "$F" ]; then
+            echo "!! RNTrackPlayer.swift not found under ios/Pods — cannot verify patch"
+            exit 1
+          fi
+          echo "RNTP source that will be compiled: $F"
+          if grep -q "self?.player.next()" "$F" && grep -q "self?.player.pause()" "$F" && grep -q "self?.player.seek(to: event.positionTime)" "$F"; then
+            echo "✅ RNTP native lock-screen fallback patch confirmed in compiled Pods source"
+          else
+            echo "!! RNTP native patch MISSING in Pods source — aborting build (would ship broken lock screen)"
+            exit 1
+          fi
+
       - name: Archive (unsigned, device target)
         run: |
           xcodebuild -workspace ios/*.xcworkspace \
