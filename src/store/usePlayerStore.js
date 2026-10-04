@@ -603,6 +603,58 @@ export const usePlayerStore = create((set, get) => ({
     get()._persist();
   },
 
+  // 多选批量删除：从音乐库+队列一次移除多首，deleteSource=true 时批量删 App 内 Documents 副本源文件；
+  // 若当前播放的歌在删除集合内，自动跳到下一首继续播，列表空则停止。
+  removeManyFromLibrary: async (tracks, deleteSource) => {
+    const list = Array.isArray(tracks) ? tracks : [tracks];
+    if (list.length === 0) return;
+    const { library, queue, currentId, currentIndex, isPlaying } = get();
+    const delIds = new Set(list.map((t) => t.id));
+
+    if (deleteSource) {
+      for (const t of list) {
+        if (t.source === 'doc' && t.uri) {
+          try { await FileSystem.deleteAsync(t.uri, { idempotent: true }); } catch (e) { /* 单个失败不影响其余 */ }
+        }
+      }
+    }
+
+    const newLib = library.filter((t) => !delIds.has(t.id));
+    set({ library: newLib });
+
+    const newQueue = queue.filter((t) => !delIds.has(t.id));
+    let newCurrentId = currentId;
+    let newCurrentIndex = currentIndex;
+    if (delIds.has(currentId)) {
+      if (newQueue.length > 0) {
+        const ni = Math.min(currentIndex, newQueue.length - 1);
+        newCurrentId = newQueue[ni]?.id ?? null;
+        newCurrentIndex = newCurrentId ? ni : -1;
+      } else {
+        newCurrentId = null;
+        newCurrentIndex = -1;
+      }
+    } else {
+      newCurrentIndex = indexOfId(newQueue, currentId);
+    }
+
+    set({ queue: newQueue, currentId: newCurrentId, currentIndex: newCurrentIndex });
+
+    const ids = newQueue.map((t) => t.id).join('|');
+    _lastQueueIds = ids;
+    try { await TrackPlayer.setQueue(newQueue.map(toTPTrack)); } catch (e) {}
+    if (newCurrentId) {
+      const idx = indexOfId(newQueue, newCurrentId);
+      try { await TrackPlayer.skip(idx); } catch (e) {}
+      if (isPlaying) { try { await TrackPlayer.play(); } catch (e) {} }
+      get()._updateNowPlaying();
+    } else {
+      try { await TrackPlayer.stop(); } catch (e) {}
+      set({ isPlaying: false });
+    }
+    get()._persist();
+  },
+
   _playQueueAt: async (queue, startIndex) => {
     set({ queue, currentIndex: startIndex, currentId: queue[startIndex]?.id });
     _lastQueueIds = queue.map((t) => t.id).join('|');
@@ -762,6 +814,34 @@ export const usePlayerStore = create((set, get) => ({
   removeFromPlaylist: (plId, trackId) => {
     set({
       playlists: get().playlists.map((p) => (p.id === plId ? { ...p, trackIds: p.trackIds.filter((t) => t !== trackId) } : p)),
+    });
+    get()._savePlaylists();
+  },
+
+  // 多选：一次把多首歌加入歌单（去重、保留原有顺序追加在末尾）
+  addTracksToPlaylist: (plId, trackIds) => {
+    const ids = Array.isArray(trackIds) ? trackIds : [trackIds];
+    if (ids.length === 0) return;
+    set({
+      playlists: get().playlists.map((p) => {
+        if (p.id !== plId) return p;
+        const has = new Set(p.trackIds);
+        const extra = ids.filter((id) => !has.has(id));
+        if (extra.length === 0) return p;
+        return { ...p, trackIds: p.trackIds.concat(extra) };
+      }),
+    });
+    get()._savePlaylists();
+  },
+
+  // 多选：一次从歌单移出多首
+  removeTracksFromPlaylist: (plId, trackIds) => {
+    const ids = new Set(Array.isArray(trackIds) ? trackIds : [trackIds]);
+    if (ids.size === 0) return;
+    set({
+      playlists: get().playlists.map((p) =>
+        p.id === plId ? { ...p, trackIds: p.trackIds.filter((t) => !ids.has(t)) } : p
+      ),
     });
     get()._savePlaylists();
   },
